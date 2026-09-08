@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Детство</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Icons за модерни бутони и иконки -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Пин екран за вход -->
+    <div id="lock-screen"></div>
+
+    <!-- Основен сайт -->
+    <div id="site" style="display: none;">
+        <header class="bogify-header">
+            <h1 class="logo" onclick="showHomeView()">Детство</h1>
+            <div class="header-right">
+                <div class="search-box">
+                    <span class="material-icons">search</span>
+                    <input type="text" id="search-input" placeholder="Търсене на филм или сериал..." oninput="handleSearch(this.value)">
+                </div>
+                <button class="home-btn" onclick="showHomeView()">Начало</button>
+            </div>
+        </header>
+
+        <main class="bogify-main">
+            <!-- Начален екран с каросел и каталози -->
+            <div id="home-view" class="view-section">
+                <!-- Модерен каросел за топ заглавия -->
+                <div id="hero-carousel" class="hero-carousel">
+                    <div class="carousel-inner" id="carousel-inner"></div>
+                    <button class="carousel-control prev" onclick="moveCarousel(-1)">&#10094;</button>
+                    <button class="carousel-control next" onclick="moveCarousel(1)">&#10095;</button>
+                </div>
+
+                <!-- Филтри / Категории -->
+                <div class="filter-bar" id="filter-bar">
+                    <button class="filter-chip active" onclick="filterByCategory('Всички', this)">Всички</button>
+                    <button class="filter-chip" onclick="filterByCategory('Сериал', this)">Сериали</button>
+                    <button class="filter-chip" onclick="filterByCategory('Филм', this)">Филми</button>
+                </div>
+
+                <!-- Секция с картички -->
+                <div id="media-grid">Зареждане на каталога...</div>
+            </div>
+
+            <!-- Екран за сезони -->
+            <div id="seasons-view" class="view-section" style="display: none;"></div>
+
+            <!-- Екран за епизоди -->
+            <div id="episodes-view" class="view-section" style="display: none;"></div>
+
+            <!-- Екран за гледане (плейър) -->
+            <div id="watch-view" class="view-section" style="display: none;"></div>
+        </main>
+    </div>
+
+    <!-- Зареждане на скриптовете в правилния ред -->
+    <script src="config.js"></script>
+    <script src="player.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

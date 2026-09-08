@@ -1,0 +1,82 @@
+{
+  "siteName": "REELHOUSE",
+  "featured": {
+    "id": "v1",
+    "title": "Midnight in the Old Quarter",
+    "description": "A wandering night through empty streets, shot over one continuous take as the city exhales after midnight.",
+    "backdrop": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=1600&auto=format&fit=crop",
+    "year": "2025",
+    "duration": "18 min"
+  },
+  "categories": [
+    {
+      "name": "Анимации & Сериали",
+      "videos": [
+        {
+          "id": "v1",
+          "title": "Нинджаго - Сезон 1, Епизод 1",
+          "description": "Майсторите на Спинджицу - Епизод 1 (БГ Аудио)",
+          "poster": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=600&auto=format&fit=crop",
+          "year": "2025",
+          "duration": "22 min",
+          "embedUrl": "https://playtube.tv/embed/VzRAe8SvjV3k1J8"
+        },
+        {
+          "id": "v2",
+          "title": "Paper Boats",
+          "description": "Two siblings race handmade boats down a rain-swollen gutter, and lose more than the race.",
+          "poster": "https://images.unsplash.com/photo-1500462918059-b1a0cb512f1d?q=80&w=600&auto=format&fit=crop",
+          "year": "2024",
+          "duration": "9 min",
+          "embedUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        },
+        {
+          "id": "v3",
+          "title": "Static",
+          "description": "An old television picks up a signal that shouldn't exist.",
+          "poster": "https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=600&auto=format&fit=crop",
+          "year": "2024",
+          "duration": "12 min",
+          "embedUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+        }
+      ]
+    },
+    {
+      "name": "Документални",
+      "videos": [
+        {
+          "id": "v4",
+          "title": "The Last Print Shop",
+          "description": "Inside the final letterpress studio still running in the region, told through the hands that run it.",
+          "poster": "https://images.unsplash.com/photo-1497493292307-31c376b6e479?q=80&w=600&auto=format&fit=crop",
+          "year": "2023",
+          "duration": "34 min",
+          "embedUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        },
+        {
+          "id": "v5",
+          "title": "Harvest Line",
+          "description": "One growing season, followed field to table.",
+          "poster": "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?q=80&w=600&auto=format&fit=crop",
+          "year": "2025",
+          "duration": "41 min",
+          "embedUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        }
+      ]
+    },
+    {
+      "name": "Зад кадър",
+      "videos": [
+        {
+          "id": "v6",
+          "title": "Building the Set: Midnight",
+          "description": "How the old-quarter set was built on a soundstage in eleven days.",
+          "poster": "https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=600&auto=format&fit=crop",
+          "year": "2025",
+          "duration": "7 min",
+          "embedUrl": "https://www.youtube.com/embed/dQw4w9WgXcQ"
+        }
+      ]
+    }
+  ]
+}
