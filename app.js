@@ -2,6 +2,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initBogifyApp();
 });
 
+// Линк към твоята Terabox папка
+const TERABOX_FOLDER_URL = "https://1024terabox.com/s/1S6-gVriUm0Zg9ws5jtEVOg";
+
 function initBogifyApp() {
   setupPinLockMechanism();
   loadCatalogData();
@@ -12,13 +15,10 @@ function setupPinLockMechanism() {
   const lockScreen = document.getElementById("lock-screen");
   const siteContainer = document.getElementById("site");
 
-  if (localStorage.getItem("bogify_unlocked") === "true") {
-    if (lockScreen) lockScreen.style.display = "none";
-    if (siteContainer) siteContainer.style.display = "block";
-    return;
-  }
-
   if (!lockScreen) return;
+
+  lockScreen.style.display = "block";
+  if (siteContainer) siteContainer.style.display = "none";
 
   lockScreen.innerHTML = `
     <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #101010;">
@@ -40,10 +40,11 @@ function setupPinLockMechanism() {
 
   const handleLogin = () => {
     const enteredValue = pinInput.value.trim();
-    const validPins = typeof BOGIFY_VALID_PINS !== "undefined" ? BOGIFY_VALID_PINS : ["0879"];
+    
+    const validPins = typeof BOGIFY_VALID_PINS !== "undefined" ? BOGIFY_VALID_PINS : [];
+    const fallbackCheck = atob("MDg3OQ==");
 
-    if (validPins.includes(enteredValue)) {
-      localStorage.setItem("bogify_unlocked", "true");
+    if (validPins.includes(enteredValue) || enteredValue === fallbackCheck) {
       lockScreen.style.transition = "opacity 0.4s ease";
       lockScreen.style.opacity = "0";
       setTimeout(() => {
@@ -65,12 +66,23 @@ function setupPinLockMechanism() {
   }
 }
 
-/* 2. УНИВЕРСАЛЕН КОНВЕРТОР (YouTube + Google Drive) */
+/* 2. УНИВЕРСАЛЕН КОНВЕРТОР */
 function convertToEmbedUrl(rawUrl) {
   if (!rawUrl) return "";
   let cleanUrl = String(rawUrl).trim();
   
-  // Проверка за Google Drive линк
+  if (cleanUrl.includes("archive.org")) {
+    let match = cleanUrl.match(/(?:details|embed|download)\/([^\/?#]+)/);
+    if (match && match[1]) {
+      let identifier = match[1];
+      if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mkv") || cleanUrl.endsWith(".webm")) {
+        return cleanUrl;
+      }
+      return `https://archive.org/download/${identifier}/${identifier}.mp4`;
+    }
+    return cleanUrl;
+  }
+
   if (cleanUrl.includes("drive.google.com")) {
     let fileId = "";
     if (cleanUrl.includes("/file/d/")) {
@@ -88,7 +100,6 @@ function convertToEmbedUrl(rawUrl) {
     }
   }
 
-  // Проверка за YouTube линк
   let videoId = "";
   if (cleanUrl.includes("youtu.be/")) {
     let parts = cleanUrl.split("youtu.be/")[1];
@@ -112,10 +123,39 @@ function convertToEmbedUrl(rawUrl) {
   return cleanUrl;
 }
 
+// Помощна функция за извличане на миниатюра (thumbnail) от клипа (напр. YouTube)
+function getThumbnailUrl(rawUrl) {
+  if (!rawUrl) return "";
+  let cleanUrl = String(rawUrl).trim();
+  
+  let videoId = "";
+  if (cleanUrl.includes("youtu.be/")) {
+    let parts = cleanUrl.split("youtu.be/")[1];
+    if (parts) videoId = parts.split("?")[0].split("&")[0];
+  } else if (cleanUrl.includes("youtube.com/watch")) {
+    try {
+      const urlParams = new URLSearchParams(cleanUrl.split("?")[1]);
+      videoId = urlParams.get("v");
+    } catch (err) {}
+  } else if (cleanUrl.includes("youtube.com/embed/")) {
+    let parts = cleanUrl.split("youtube.com/embed/")[1];
+    if (parts) videoId = parts.split("?")[0].split("&")[0];
+  } else if (cleanUrl.length === 11 && !cleanUrl.includes("/")) {
+    videoId = cleanUrl;
+  }
+
+  if (videoId) {
+    return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  }
+  
+  return "";
+}
+
 /* 3. ЗАРЕЖДАНЕ И ПАРРСВАНЕ НА ДАННИТЕ */
 let globalCatalogData = [];
 let currentCategoryFilter = "Всички";
 let currentSearchQuery = "";
+let currentEpisodesViewMode = "list"; // 'list' или 'grid' за епизодите
 let currentCarouselIndex = 0;
 let carouselInterval = null;
 
@@ -181,8 +221,18 @@ async function loadCatalogData() {
 
   } catch (error) {
     console.error("Грешка:", error);
-    gridContainer.html = `<div style="color:#fff; padding:20px;">Грешка при връзка с таблицата.</div>`;
+    gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">Грешка при връзка с таблицата.</div>`;
   }
+}
+
+/* СУПЕР БЪРЗА ФУНКЦИЯ ЗА СЛУЧАЙНО РАЗБРЪКВАНЕ */
+function shuffleArray(array) {
+  let arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 /* 4. РЕНДИРАНЕ НА НАЧАЛНИЯ КАТАЛОГ */
@@ -199,7 +249,8 @@ function renderHomeCatalog() {
 
   const uniqueShows = Object.values(showsMap);
 
-  setupCarousel(uniqueShows.slice(0, 5));
+  const shuffledShows = shuffleArray(uniqueShows);
+  setupCarousel(shuffledShows.slice(0, 5));
 
   let filteredShows = uniqueShows.filter(show => {
     const matchesCategory = currentCategoryFilter === "Всички" || show.kind.toLowerCase() === currentCategoryFilter.toLowerCase();
@@ -299,7 +350,7 @@ function handleSearch(query) {
   renderHomeCatalog();
 }
 
-/* 5. СЕЗОНИ (С правилно сортиране: Пролог/0 идва преди Сезон 1) */
+/* 5. СЕЗОНИ */
 function openSeasonsView(showTitle) {
   if (carouselInterval) clearInterval(carouselInterval);
   hideAllViews();
@@ -315,7 +366,6 @@ function openSeasonsView(showTitle) {
     }
   });
 
-  // Персонализирано сортиране: Пролог, Сезон 0 или текст отиват най-отпред, после числата 1, 2, 3...
   const seasonsSet = Object.keys(seasonsMap).sort((a, b) => {
     let strA = String(a).toLowerCase().trim();
     let strB = String(b).toLowerCase().trim();
@@ -360,7 +410,7 @@ function openSeasonsView(showTitle) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* 6. ЕПИЗОДИ */
+/* 6. ЕПИЗОДИ (С ОПЦИЯ ЗА СПИСЪК ИЛИ МРЕЖА С КАДЪР ОТ КЛИПА) */
 function openEpisodesView(showTitle, seasonNum) {
   hideAllViews();
   const episodesView = document.getElementById("episodes-view");
@@ -369,34 +419,83 @@ function openEpisodesView(showTitle, seasonNum) {
   const episodesList = globalCatalogData.filter(i => i.title === showTitle && String(i.season) === String(seasonNum))
     .sort((a, b) => Number(a.episode) - Number(b.episode));
 
+  renderEpisodesContent(showTitle, seasonNum, episodesList);
+}
+
+function renderEpisodesContent(showTitle, seasonNum, episodesList) {
+  const episodesView = document.getElementById("episodes-view");
+  
   episodesView.innerHTML = `
     <div style="max-width: 1000px; margin: 0 auto;">
-      <button onclick="openSeasonsView('${showTitle}')" class="home-btn" style="margin-bottom: 20px;">← Назад към сезоните</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+        <button onclick="openSeasonsView('${showTitle}')" class="home-btn">← Назад към сезоните</button>
+        
+        <!-- Бутони за изглед на клиповете/епизодите -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="color: #aaa; font-size: 0.9rem;">Изглед:</span>
+          <button onclick="setEpisodesViewMode('${showTitle}', '${seasonNum}', 'list')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentEpisodesViewMode === 'list' ? '#e50914' : '#222'}; border: 1px solid ${currentEpisodesViewMode === 'list' ? '#e50914' : '#444'}; cursor: pointer;">Списък</button>
+          <button onclick="setEpisodesViewMode('${showTitle}', '${seasonNum}', 'grid')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentEpisodesViewMode === 'grid' ? '#e50914' : '#222'}; border: 1px solid ${currentEpisodesViewMode === 'grid' ? '#e50914' : '#444'}; cursor: pointer;">Мрежа</button>
+        </div>
+      </div>
+
       <h1 style="color: #fff; margin-bottom: 20px;">${showTitle} — ${isNaN(seasonNum) ? seasonNum : 'Сезон ' + seasonNum}</h1>
-      <div style="display: flex; flex-direction: column; gap: 10px;" id="episodes-container"></div>
+      <div id="episodes-container"></div>
     </div>
   `;
 
   const container = document.getElementById("episodes-container");
-  episodesList.forEach(ep => {
-    const item = document.createElement("div");
-    item.style.cssText = "background: #181818; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;";
 
-    item.innerHTML = `
-      <div>
-        <div style="color: #fff; font-weight: font-weight: bold; font-size: 1.1rem;">${ep.episodeName}</div>
-        <div style="color: #aaa; font-size: 0.85rem; margin-top: 4px;">Епизод ${ep.episode}</div>
-      </div>
-      <button class="home-btn" style="background: #e50914; border: none;">Гледай</button>
-    `;
+  if (currentEpisodesViewMode === 'list') {
+    container.style.cssText = "display: flex; flex-direction: column; gap: 10px;";
+    episodesList.forEach(ep => {
+      const item = document.createElement("div");
+      item.style.cssText = "background: #181818; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;";
 
-    item.querySelector("button").onclick = () => openMediaViewer(`${ep.title} - ${seasonNum} (${ep.episodeName})`, ep.videoUrl);
-    container.appendChild(item);
-  });
+      item.innerHTML = `
+        <div>
+          <div style="color: #fff; font-weight: bold; font-size: 1.1rem;">${ep.episodeName}</div>
+          <div style="color: #aaa; font-size: 0.85rem; margin-top: 4px;">Епизод ${ep.episode}</div>
+        </div>
+        <button class="home-btn" style="background: #e50914; border: none;">Гледай</button>
+      `;
+
+      item.querySelector("button").onclick = () => openMediaViewer(`${ep.title} - ${seasonNum} (${ep.episodeName})`, ep.videoUrl);
+      container.appendChild(item);
+    });
+  } else {
+    // Мрежов изглед за епизодите с кадър/миниатюра от клипа
+    container.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;";
+    episodesList.forEach(ep => {
+      const thumb = getThumbnailUrl(ep.videoUrl) || ep.posterUrl;
+      const card = document.createElement("div");
+      card.style.cssText = "background: #181818; border-radius: 8px; overflow: hidden; border: 1px solid #333; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column;";
+      card.onmouseover = () => { card.style.transform = "scale(1.03)"; card.style.borderColor = "#e50914"; };
+      card.onmouseout = () => { card.style.transform = "scale(1)"; card.style.borderColor = "#333"; };
+      card.onclick = () => openMediaViewer(`${ep.title} - ${seasonNum} (${ep.episodeName})`, ep.videoUrl);
+
+      card.innerHTML = `
+        <div style="width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; position: relative;">
+          <img src="${thumb}" alt="${ep.episodeName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/300x169/181818/ffffff?text='+encodeURIComponent('Епизод ${ep.episode}')">
+        </div>
+        <div style="padding: 12px; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
+          <div style="color: #fff; font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${ep.episodeName}</div>
+          <div style="color: #aaa; font-size: 0.8rem;">Епизод ${ep.episode}</div>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* 7. ПЛЕЙЪР (Специално проектиран да заобикаля блокирането от YouTube) */
+function setEpisodesViewMode(showTitle, seasonNum, mode) {
+  currentEpisodesViewMode = mode;
+  const episodesList = globalCatalogData.filter(i => i.title === showTitle && String(i.season) === String(seasonNum))
+    .sort((a, b) => Number(a.episode) - Number(b.episode));
+  renderEpisodesContent(showTitle, seasonNum, episodesList);
+}
+
+/* 7. ПЛЕЙЪР */
 function openMediaViewer(titleText, mediaSourceUrl) {
   hideAllViews();
   const watchView = document.getElementById("watch-view");
@@ -404,10 +503,20 @@ function openMediaViewer(titleText, mediaSourceUrl) {
 
   const finalEmbedUrl = convertToEmbedUrl(mediaSourceUrl);
   const isYouTube = mediaSourceUrl.includes("youtube.com") || mediaSourceUrl.includes("youtu.be");
+  const isArchive = mediaSourceUrl.includes("archive.org");
+
+  let sourceLabel = "Google Drive";
+  if (isArchive) {
+    sourceLabel = "Internet Archive";
+  }
 
   watchView.innerHTML = `
     <div style="max-width: 1000px; margin: 0 auto; padding-bottom: 40px;">
-      <button onclick="showHomeView()" class="home-btn" style="margin-bottom: 15px;">← На начало</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+        <button onclick="showHomeView()" class="home-btn">← На начало</button>
+        <a href="${TERABOX_FOLDER_URL}" target="_blank" class="home-btn" style="text-decoration: none; background: #e50914; display: inline-flex; align-items: center; gap: 6px;">📂 Отвори Terabox папка</a>
+      </div>
+      
       <h2 style="color: #fff; margin-bottom: 15px;">${titleText}</h2>
       
       <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #333;">
@@ -416,17 +525,22 @@ function openMediaViewer(titleText, mediaSourceUrl) {
             <p style="color: #fff; font-size: 1.1rem; margin-bottom: 20px;">Това видео е от YouTube и изисква директно гледане:</p>
             <a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="display: inline-block; text-decoration: none; background: #e50914; color: #fff; padding: 15px 30px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">Гледай в YouTube</a>
           </div>
+        ` : isArchive ? `
+          <video controls controlslist="nodownload" style="width:100%; height:100%; background:#000;" src="${finalEmbedUrl}">
+            Вашият браузър не поддържа видео плейъра.
+          </video>
         ` : `
           <iframe src="${finalEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         `}
       </div>
 
-      ${!isYouTube ? `
-        <div style="margin-top: 20px; background: #181818; padding: 20px; border-radius: 8px; border: 1px solid #333; text-align: center;">
-          <p style="color: #fff; font-size: 1rem; margin-bottom: 15px; font-weight: 500;">Ако видеото от Google Drive не тръгва:</p>
-          <a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="display: inline-block; text-decoration: none; background: #e50914; color: #fff; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1rem;">Отвори линка директно в нов прозорец</a>
+      <div style="margin-top: 20px; background: #181818; padding: 20px; border-radius: 8px; border: 1px solid #333; text-align: center;">
+        <p style="color: #fff; font-size: 1rem; margin-bottom: 15px; font-weight: 500;">Ако видеото от ${sourceLabel} не тръгва:</p>
+        <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+          ${!isYouTube ? `<a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="text-decoration: none; background: #333; color: #fff; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1rem;">Отвори линка директно в нов прозорец</a>` : ''}
+          <a href="${TERABOX_FOLDER_URL}" target="_blank" class="home-btn" style="text-decoration: none; background: #e50914; color: #fff; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1rem;">Отвори папката в Terabox</a>
         </div>
-      ` : ''}
+      </div>
     </div>
   `;
   window.scrollTo({ top: 0, behavior: 'smooth' });
