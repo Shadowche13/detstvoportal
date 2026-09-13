@@ -66,7 +66,7 @@ function setupPinLockMechanism() {
   }
 }
 
-/* 2. УНИВЕРСАЛЕН КОНВЕРТОР И ТЪРСЕНЕ */
+/* 2. УНИВЕРСАЛЕН КОНВЕРТОР И GOOGLE-ПОДОБНО ТЪРСЕНЕ */
 function convertToEmbedUrl(rawUrl) {
   if (!rawUrl) return "";
   let cleanUrl = String(rawUrl).trim();
@@ -148,18 +148,12 @@ function getThumbnailUrl(rawUrl) {
   return "";
 }
 
-/* УМНА ФУНКЦИЯ ЗА НОРМАЛИЗИРАНЕ НА ТЕКСТ (КИРИЛИЦА / ЛАТИНИЦА) */
+/* GOOGLE-ПОДОБНА ФУНКЦИЯ ЗА НОРМАЛИЗИРАНЕ НА ТЕКСТ */
 function normalizeText(text) {
   if (!text) return "";
   let str = String(text).toLowerCase().trim();
   
-  const latinToCyrillic = {
-    'sh': 'ш', 'ch': 'ч', 'zh': 'ж', 'ts': 'ц', 'yu': 'ю', 'ya': 'я', 'sht': 'щ',
-    'a': 'а', 'b': 'б', 'v': 'в', 'g': 'г', 'd': 'д', 'e': 'е', 'z': 'з', 
-    'i': 'и', 'j': 'й', 'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н', 'o': 'о', 
-    'p': 'п', 'r': 'р', 's': 'с', 't': 'т', 'u': 'у', 'f': 'ф', 'h': 'х', 'c': 'ц'
-  };
-
+  // Транслитерация латиница -> кирилица (поддържа съчетания и единични букви)
   str = str.replace(/sht/g, 'щ')
            .replace(/sh/g, 'ш')
            .replace(/ch/g, 'ч')
@@ -168,16 +162,21 @@ function normalizeText(text) {
            .replace(/yu/g, 'ю')
            .replace(/ya/g, 'я');
 
+  const latinToCyrillic = {
+    'a': 'а', 'b': 'б', 'v': 'в', 'g': 'г', 'd': 'д', 'e': 'е', 'z': 'з', 
+    'i': 'и', 'j': 'й', 'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н', 'o': 'о', 
+    'p': 'п', 'r': 'р', 's': 'с', 't': 'т', 'u': 'у', 'f': 'ф', 'h': 'х', 'c': 'ц'
+  };
+
   for (let [lat, cyr] of Object.entries(latinToCyrillic)) {
-    if (lat.length === 1) {
-      let regex = new RegExp(lat, 'g');
-      str = str.replace(regex, cyr);
-    }
+    str = str.replace(new RegExp(lat, 'g'), cyr);
   }
 
   return str.normalize("NFD")
             .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-zа-я0-9]/g, "");
+            .replace(/[^a-zа-я0-9\s]/g, "") // Запазваме интервалите за разделяне на думи
+            .replace(/\s+/g, " ")
+            .trim();
 }
 
 /* 3. ЗАРЕЖДАНЕ НА ДАННИТЕ */
@@ -264,7 +263,7 @@ function shuffleArray(array) {
   return arr;
 }
 
-/* 4. РЕНДИРАНЕ НА КАТАЛОГА И ТЪРСЕНЕ */
+/* 4. РЕНДИРАНЕ НА КАТАЛОГА И GOOGLE ТЪРСЕНЕ */
 function renderHomeCatalog() {
   hideAllViews();
   document.getElementById("home-view").style.display = "block";
@@ -281,13 +280,21 @@ function renderHomeCatalog() {
   const shuffledShows = shuffleArray(uniqueShows);
   setupCarousel(shuffledShows.slice(0, 5));
 
+  // Разбиваме търсенето на отделни думи (Google логика)
   const normalizedQuery = normalizeText(currentSearchQuery);
+  const searchKeywords = normalizedQuery ? normalizedQuery.split(" ") : [];
 
   let filteredShows = uniqueShows.filter(show => {
     const matchesCategory = currentCategoryFilter === "Всички" || show.kind.toLowerCase() === currentCategoryFilter.toLowerCase();
+    
+    if (searchKeywords.length === 0) return matchesCategory;
+
     const normalizedTitle = normalizeText(show.title);
-    const matchesSearch = !normalizedQuery || normalizedTitle.includes(normalizedQuery);
-    return matchesCategory && matchesSearch;
+    
+    // Проверяваме дали ВСИЧКИ написани думи се съдържат в заглавието (без значение от реда)
+    const matchesAllKeywords = searchKeywords.every(keyword => normalizedTitle.includes(keyword));
+    
+    return matchesCategory && matchesAllKeywords;
   });
 
   const gridContainer = document.getElementById("media-grid");
@@ -482,7 +489,7 @@ function openSeasonsView(showTitle) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* 6. ЕПИЗОДИ (С МРЕЖА ИЛИ СПИСЪК) */
+/* 6. ЕПИЗОДИ */
 function openEpisodesView(showTitle, seasonNum) {
   hideAllViews();
   const episodesView = document.getElementById("episodes-view");
