@@ -66,7 +66,7 @@ function setupPinLockMechanism() {
   }
 }
 
-/* 2. УНИВЕРСАЛЕН КОНВЕРТОР */
+/* 2. УНИВЕРСАЛЕН КОНВЕРТОР И ТЪРСЕНЕ */
 function convertToEmbedUrl(rawUrl) {
   if (!rawUrl) return "";
   let cleanUrl = String(rawUrl).trim();
@@ -123,11 +123,9 @@ function convertToEmbedUrl(rawUrl) {
   return cleanUrl;
 }
 
-// Помощна функция за извличане на миниатюра (thumbnail) от клипа (напр. YouTube)
 function getThumbnailUrl(rawUrl) {
   if (!rawUrl) return "";
   let cleanUrl = String(rawUrl).trim();
-  
   let videoId = "";
   if (cleanUrl.includes("youtu.be/")) {
     let parts = cleanUrl.split("youtu.be/")[1];
@@ -147,14 +145,46 @@ function getThumbnailUrl(rawUrl) {
   if (videoId) {
     return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
   }
-  
   return "";
 }
 
-/* 3. ЗАРЕЖДАНЕ И ПАРРСВАНЕ НА ДАННИТЕ */
+/* УМНА ФУНКЦИЯ ЗА НОРМАЛИЗИРАНЕ НА ТЕКСТ (КИРИЛИЦА / ЛАТИНИЦА) */
+function normalizeText(text) {
+  if (!text) return "";
+  let str = String(text).toLowerCase().trim();
+  
+  const latinToCyrillic = {
+    'sh': 'ш', 'ch': 'ч', 'zh': 'ж', 'ts': 'ц', 'yu': 'ю', 'ya': 'я', 'sht': 'щ',
+    'a': 'а', 'b': 'б', 'v': 'в', 'g': 'г', 'd': 'д', 'e': 'е', 'z': 'з', 
+    'i': 'и', 'j': 'й', 'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н', 'o': 'о', 
+    'p': 'п', 'r': 'р', 's': 'с', 't': 'т', 'u': 'у', 'f': 'ф', 'h': 'х', 'c': 'ц'
+  };
+
+  str = str.replace(/sht/g, 'щ')
+           .replace(/sh/g, 'ш')
+           .replace(/ch/g, 'ч')
+           .replace(/zh/g, 'ж')
+           .replace(/ts/g, 'ц')
+           .replace(/yu/g, 'ю')
+           .replace(/ya/g, 'я');
+
+  for (let [lat, cyr] of Object.entries(latinToCyrillic)) {
+    if (lat.length === 1) {
+      let regex = new RegExp(lat, 'g');
+      str = str.replace(regex, cyr);
+    }
+  }
+
+  return str.normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-zа-я0-9]/g, "");
+}
+
+/* 3. ЗАРЕЖДАНЕ НА ДАННИТЕ */
 let globalCatalogData = [];
 let currentCategoryFilter = "Всички";
 let currentSearchQuery = "";
+let currentViewMode = "grid"; // 'grid' или 'list' за главния каталог
 let currentEpisodesViewMode = "list"; // 'list' или 'grid' за епизодите
 let currentCarouselIndex = 0;
 let carouselInterval = null;
@@ -225,7 +255,6 @@ async function loadCatalogData() {
   }
 }
 
-/* СУПЕР БЪРЗА ФУНКЦИЯ ЗА СЛУЧАЙНО РАЗБРЪКВАНЕ */
 function shuffleArray(array) {
   let arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -235,7 +264,7 @@ function shuffleArray(array) {
   return arr;
 }
 
-/* 4. РЕНДИРАНЕ НА НАЧАЛНИЯ КАТАЛОГ */
+/* 4. РЕНДИРАНЕ НА КАТАЛОГА И ТЪРСЕНЕ */
 function renderHomeCatalog() {
   hideAllViews();
   document.getElementById("home-view").style.display = "block";
@@ -252,44 +281,92 @@ function renderHomeCatalog() {
   const shuffledShows = shuffleArray(uniqueShows);
   setupCarousel(shuffledShows.slice(0, 5));
 
+  const normalizedQuery = normalizeText(currentSearchQuery);
+
   let filteredShows = uniqueShows.filter(show => {
     const matchesCategory = currentCategoryFilter === "Всички" || show.kind.toLowerCase() === currentCategoryFilter.toLowerCase();
-    const matchesSearch = show.title.toLowerCase().includes(currentSearchQuery.toLowerCase());
+    const normalizedTitle = normalizeText(show.title);
+    const matchesSearch = !normalizedQuery || normalizedTitle.includes(normalizedQuery);
     return matchesCategory && matchesSearch;
   });
 
   const gridContainer = document.getElementById("media-grid");
   gridContainer.innerHTML = "";
 
+  const controlsBar = document.createElement("div");
+  controlsBar.style.cssText = "display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 20px; padding: 0 10px;";
+  controlsBar.innerHTML = `
+    <span style="color: #aaa; font-size: 0.9rem; margin-right: 5px;">Изглед:</span>
+    <button onclick="setViewMode('grid')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentViewMode === 'grid' ? '#e50914' : '#222'}; border: 1px solid ${currentViewMode === 'grid' ? '#e50914' : '#444'}; cursor: pointer;">Мрежа</button>
+    <button onclick="setViewMode('list')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentViewMode === 'list' ? '#e50914' : '#222'}; border: 1px solid ${currentViewMode === 'list' ? '#e50914' : '#444'}; cursor: pointer;">Списък</button>
+  `;
+  gridContainer.appendChild(controlsBar);
+
   if (filteredShows.length === 0) {
-    gridContainer.innerHTML = `<div style="color: #888; padding: 40px; text-align: center; font-size: 1.1rem;">Няма намерени заглавия.</div>`;
+    const emptyMsg = document.createElement("div");
+    emptyMsg.style.cssText = "color: #888; padding: 40px; text-align: center; font-size: 1.1rem;";
+    emptyMsg.textContent = "Няма намерени заглавия.";
+    gridContainer.appendChild(emptyMsg);
     return;
   }
 
   const gridWrapper = document.createElement("div");
-  gridWrapper.className = "media-grid-container";
 
-  filteredShows.forEach(show => {
-    const card = document.createElement("div");
-    card.className = "media-card";
-    card.onclick = () => openSeasonsView(show.title);
+  if (currentViewMode === 'grid') {
+    gridWrapper.className = "media-grid-container";
+    filteredShows.forEach(show => {
+      const card = document.createElement("div");
+      card.className = "media-card";
+      card.onclick = () => openSeasonsView(show.title);
 
-    card.innerHTML = `
-      <div class="poster-wrapper">
-        <img src="${show.posterUrl}" alt="${show.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${show.title}')">
-      </div>
-      <div class="card-info">
-        <div class="card-title">${show.title}</div>
-        <div class="card-subtitle">${show.kind}</div>
-      </div>
-    `;
-    gridWrapper.appendChild(card);
-  });
+      card.innerHTML = `
+        <div class="poster-wrapper">
+          <img src="${show.posterUrl}" alt="${show.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${show.title}')">
+        </div>
+        <div class="card-info">
+          <div class="card-title">${show.title}</div>
+          <div class="card-subtitle">${show.kind}</div>
+        </div>
+      `;
+      gridWrapper.appendChild(card);
+    });
+  } else {
+    gridWrapper.style.cssText = "display: flex; flex-direction: column; gap: 12px;";
+    filteredShows.forEach(show => {
+      const item = document.createElement("div");
+      item.style.cssText = "background: #181818; padding: 12px 18px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #333; cursor: pointer; transition: border-color 0.2s;";
+      item.onmouseover = () => item.style.borderColor = "#e50914";
+      item.onmouseout = () => item.style.borderColor = "#333";
+      item.onclick = () => openSeasonsView(show.title);
+
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <img src="${show.posterUrl}" alt="${show.title}" style="width: 45px; height: 65px; object-fit: cover; border-radius: 4px;" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${show.title}')">
+          <div>
+            <div style="color: #fff; font-weight: bold; font-size: 1.1rem; margin-bottom: 3px;">${show.title}</div>
+            <div style="color: #aaa; font-size: 0.85rem;">${show.kind}</div>
+          </div>
+        </div>
+        <button class="home-btn" style="background: #e50914; border: none; padding: 8px 16px; font-size: 0.9rem;">Преглед</button>
+      `;
+      gridWrapper.appendChild(item);
+    });
+  }
 
   gridContainer.appendChild(gridWrapper);
 }
 
-/* КАРОСЕЛ ФУНКЦИИ */
+function setViewMode(mode) {
+  currentViewMode = mode;
+  renderHomeCatalog();
+}
+
+function handleSearch(query) {
+  currentSearchQuery = query;
+  renderHomeCatalog();
+}
+
+/* КАРОСЕЛ */
 function setupCarousel(slidesData) {
   const carouselInner = document.getElementById("carousel-inner");
   if (!carouselInner) return;
@@ -342,11 +419,6 @@ function filterByCategory(category, btnElement) {
   currentCategoryFilter = category;
   document.querySelectorAll(".filter-chip").forEach(btn => btn.classList.remove("active"));
   if (btnElement) btnElement.classList.add("active");
-  renderHomeCatalog();
-}
-
-function handleSearch(query) {
-  currentSearchQuery = query;
   renderHomeCatalog();
 }
 
@@ -410,7 +482,7 @@ function openSeasonsView(showTitle) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* 6. ЕПИЗОДИ (С ОПЦИЯ ЗА СПИСЪК ИЛИ МРЕЖА С КАДЪР ОТ КЛИПА) */
+/* 6. ЕПИЗОДИ (С МРЕЖА ИЛИ СПИСЪК) */
 function openEpisodesView(showTitle, seasonNum) {
   hideAllViews();
   const episodesView = document.getElementById("episodes-view");
@@ -430,7 +502,6 @@ function renderEpisodesContent(showTitle, seasonNum, episodesList) {
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
         <button onclick="openSeasonsView('${showTitle}')" class="home-btn">← Назад към сезоните</button>
         
-        <!-- Бутони за изглед на клиповете/епизодите -->
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="color: #aaa; font-size: 0.9rem;">Изглед:</span>
           <button onclick="setEpisodesViewMode('${showTitle}', '${seasonNum}', 'list')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentEpisodesViewMode === 'list' ? '#e50914' : '#222'}; border: 1px solid ${currentEpisodesViewMode === 'list' ? '#e50914' : '#444'}; cursor: pointer;">Списък</button>
@@ -463,7 +534,6 @@ function renderEpisodesContent(showTitle, seasonNum, episodesList) {
       container.appendChild(item);
     });
   } else {
-    // Мрежов изглед за епизодите с кадър/миниатюра от клипа
     container.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;";
     episodesList.forEach(ep => {
       const thumb = getThumbnailUrl(ep.videoUrl) || ep.posterUrl;
