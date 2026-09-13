@@ -3,64 +3,322 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Детство</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Google Icons за модерни бутони и иконки -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <title>Видео Каталог</title>
+    <style>
+        :root {
+            --bg-color: #141414;
+            --card-bg: #1f1f1f;
+            --text-color: #ffffff;
+            --text-secondary: #b3b3b3;
+            --accent-color: #e50914;
+            --accent-hover: #f40612;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.25;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .random-btn {
+            background-color: rgba(109, 109, 110, 0.7);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .random-btn:hover {
+            background-color: rgba(109, 109, 110, 0.4);
+        }
+
+        search-bar {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            width: 200px;
+        }
+
+        main {
+            padding: 100px 40px 40px 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        section {
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 6px;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        .card-thumb {
+            width: 100%;
+            height: 130px;
+            background-color: #333;
+            object-fit: cover;
+        }
+
+        .card-content {
+            padding: 12px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 0 0 5px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .card-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Модален прозорец за гледане */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #181818;
+            width: 80%;
+            max-width: 800px;
+            padding: 30px;
+            border-radius: 8px;
+            position: relative;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+
+        .modal-title {
+            margin-top: 0;
+            font-size: 24px;
+        }
+
+        .modal-player {
+            width: 100%;
+            height: 350px;
+            background: #000;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 18px;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
 
-    <!-- Пин екран за вход -->
-    <div id="lock-screen"></div>
-    
-    <!-- Основен сайт -->
-    <div id="site" style="display: none;">
-        <header class="bogify-header">
-            <h1 class="logo" onclick="showHomeView()">Детство</h1>
-            <div class="header-right">
-                <div class="search-box">
-                    <span class="material-icons">search</span>
-                    <input type="text" id="search-input" placeholder="Търсене на филм или сериал..." oninput="handleSearch(this.value)">
-                </div>
-                <button class="home-btn" onclick="showHomeView()">Начало</button>
+    <header>
+        <div class="logo">StreamCatalog</div>
+        <div class="header-controls">
+            <button class="random-btn" onclick="playRandomTitle()">🎲 Какво да гледам?</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Секция Продължи гледането (Динамична) -->
+        <section id="continue-section" style="display: none;">
+            <h2>Продължи гледането</h2>
+            <div id="continue-grid" class="catalog-grid">
+                <!-- Тук се зареждат автоматично последните гледани заглавия -->
             </div>
-        </header>
-        
-        <main class="bogify-main">
-            <!-- Начален екран с каросел и каталози -->
-            <div id="home-view" class="view-section">
-                <!-- Модерен каросел за топ заглавия -->
-                <div id="hero-carousel" class="hero-carousel">
-                    <div class="carousel-inner" id="carousel-inner"></div>
-                    <button class="carousel-control prev" onclick="moveCarousel(-1)">&#10094;</button>
-                    <button class="carousel-control next" onclick="moveCarousel(1)">&#10095;</button>
+        </section>
+
+        <!-- Основен каталог -->
+        <section>
+            <h2>Всички заглавия</h2>
+            <div id="main-catalog" class="catalog-grid">
+                <!-- Примерни картички - можеш да ги замениш с твой списък -->
+                <div class="card" onclick="openTitle('1', 'Класическо анимационно приключение', 'Епизод 1 от любимата детска поредица.')">
+                    <div class="card-thumb" style="background: linear-gradient(45deg, #2c3e50, #3498db);"></div>
+                    <div class="card-content">
+                        <h3 class="card-title">Класическо приключение</h3>
+                        <p class="card-desc">Епизод 1 от любимата детска поредица.</p>
+                    </div>
                 </div>
-                
-                <!-- Филтри / Категории -->
-                <div class="filter-bar" id="filter-bar">
-                    <button class="filter-chip active" onclick="filterByCategory('Всички', this)">Всички</button>
-                    <button class="filter-chip" onclick="filterByCategory('Сериал', this)">Сериали</button>
-                    <button class="filter-chip" onclick="filterByCategory('Филм', this)">Филми</button>
+
+                <div class="card" onclick="openTitle('2', 'Ретро сериал: Специален епизод', 'Незабравими моменти и любими герои.')">
+                    <div class="card-thumb" style="background: linear-gradient(45deg, #8e44ad, #9b59b6);"></div>
+                    <div class="card-content">
+                        <h3 class="card-title">Ретро сериал</h3>
+                        <p class="card-desc">Незабравими моменти и любими герои.</p>
+                    </div>
                 </div>
-                
-                <!-- Секция с картички -->
-                <div id="media-grid">Зареждане на каталога...</div>
+
+                <div class="card" onclick="openTitle('3', 'Филмова колекция: Носталгия', 'Специална селекция от златната ера на анимацията.')">
+                    <div class="card-thumb" style="background: linear-gradient(45deg, #d35400, #e67e22);"></div>
+                    <div class="card-content">
+                        <h3 class="card-title">Филмова колекция</h3>
+                        <p class="card-desc">Специална селекция от златната ера.</p>
+                    </div>
+                </div>
             </div>
-            
-            <!-- Екран за сезони -->
-            <div id="seasons-view" class="view-section" style="display: none;"></div>
-            
-            <!-- Екран за епизоди -->
-            <div id="episodes-view" class="view-section" style="display: none;"></div>
-            
-            <!-- Екран за гледане (плейър) -->
-            <div id="watch-view" class="view-section" style="display: none;"></div>
-        </main>
+        </section>
+    </main>
+
+    <!-- Модален прозорец за симулация на гледане -->
+    <div id="mediaModal" class="modal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">&times;</button>
+            <h2 id="modalTitle" class="modal-title">Заглавие</h2>
+            <div class="modal-player">Видео плеър / Стрийминг зона</div>
+            <p id="modalDesc">Описание на съдържанието...</p>
+        </div>
     </div>
 
-    <!-- Зареждане на скриптовете в правилния ред -->
-    <script src="config.js"></script>
-    <script src="player.js"></script>
-    <script src="app.js"></script>
+    <script>
+        // Зареждане при стартиране
+        document.addEventListener("DOMContentLoaded", () => {
+            renderContinueWatching();
+        });
+
+        // Функция при клик на заглавие
+        function openTitle(id, title, desc) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalDesc').innerText = desc;
+            document.getElementById('mediaModal').style.display = 'flex';
+
+            // Запазване в localStorage за "Продължи гледането"
+            saveToContinueWatching({ id, title, desc });
+        }
+
+        function closeModal() {
+            document.getElementById('mediaModal').style.display = 'none';
+            renderContinueWatching(); // Обновяване на секцията отгоре
+        }
+
+        // Локална памет за "Продължи гледането"
+        function saveToContinueWatching(item) {
+            let history = JSON.parse(localStorage.getItem('continueWatching')) || [];
+            // Премахваме го ако вече съществува, за да отиде най-отпред
+            history = history.filter(i => i.id !== item.id);
+            history.unshift(item);
+            // Пазим максимум 4 заглавия
+            if (history.length > 4) history.pop();
+            localStorage.setItem('continueWatching', JSON.stringify(history));
+        }
+
+        function renderContinueWatching() {
+            let history = JSON.parse(localStorage.getItem('continueWatching')) || [];
+            const section = document.getElementById('continue-section');
+            const grid = document.getElementById('continue-grid');
+
+            if (history.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            grid.innerHTML = '';
+
+            history.forEach(item => {
+                grid.innerHTML += `
+                    <div class="card" onclick="openTitle('${item.id}', '${item.title}', '${item.desc}')">
+                        <div class="card-thumb" style="background: linear-gradient(45deg, #c0392b, #e74c3c);"></div>
+                        <div class="card-content">
+                            <h3 class="card-title">${item.title}</h3>
+                            <p class="card-desc">${item.desc}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Бутон "Случайно заглавие"
+        function playRandomTitle() {
+            const cards = document.querySelectorAll('#main-catalog .card');
+            if (cards.length === 0) return;
+            const randomIndex = Math.floor(Math.random() * cards.length);
+            cards[randomIndex].click();
+        }
+    </script>
 </body>
 </html>
