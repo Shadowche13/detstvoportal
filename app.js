@@ -5,9 +5,129 @@ document.addEventListener("DOMContentLoaded", () => {
 // Линк към твоята Terabox папка
 const TERABOX_FOLDER_URL = "https://1024terabox.com/s/1S6-gVriUm0Zg9ws5jtEVOg";
 
+// Поддържани езици и цялостен речник с преводи
+let currentLanguage = "bg"; // по подразбиране български
+
+const translations = {
+  bg: {
+    siteTitle: "Детство",
+    searchPlaceholder: "Търсене на филм или сериал...",
+    homeBtn: "Начало",
+    all: "Всички",
+    series: "Сериали",
+    movie: "Филми",
+    loadingCatalog: "Зареждане на каталога...",
+    emptyTable: "Таблицата е празна.",
+    dbError: "Грешка при връзка с таблицата.",
+    viewLabel: "Изглед:",
+    viewGrid: "Мрежа",
+    viewList: "Списък",
+    noResults: "Няма намерени заглавия.",
+    carouselSub: "Натисни за преглед на сезоните и епизодите",
+    backToCatalog: "← Назад към каталога",
+    selectSeason: "Избери Сезон",
+    season: "Сезон",
+    episode: "Епизод",
+    backToSeasons: "← Назад към сезоните",
+    backToHome: "← На начало",
+    watch: "Гледай",
+    overview: "Преглед",
+    openTerabox: "📂 Отвори Terabox папка",
+    youtubeDirect: "Това видео е от YouTube и изисква директно гледане:",
+    watchYoutube: "Гледай в YouTube",
+    ifNotWorking: "Ако видеото не тръгва:",
+    openDirectly: "Отвори линка директно в нов прозорец",
+    enterPin: "Въведете 6-цифрен код за достъп:",
+    loginBtn: "Вход",
+    wrongPin: "Невалиден код за достъп!"
+  },
+  en: {
+    siteTitle: "Детство",
+    searchPlaceholder: "Search movie or series...",
+    homeBtn: "Home",
+    all: "All",
+    series: "Series",
+    movie: "Movies",
+    loadingCatalog: "Loading catalog...",
+    emptyTable: "Table is empty.",
+    dbError: "Error connecting to the spreadsheet.",
+    viewLabel: "View:",
+    viewGrid: "Grid",
+    viewList: "List",
+    noResults: "No titles found.",
+    carouselSub: "Click to view seasons and episodes",
+    backToCatalog: "← Back to catalog",
+    selectSeason: "Select Season",
+    season: "Season",
+    episode: "Episode",
+    backToSeasons: "← Back to seasons",
+    backToHome: "← Home",
+    watch: "Watch",
+    overview: "Overview",
+    openTerabox: "📂 Open Terabox folder",
+    youtubeDirect: "This video is from YouTube and requires direct viewing:",
+    watchYoutube: "Watch on YouTube",
+    ifNotWorking: "If the video doesn't play:",
+    openDirectly: "Open link directly in a new window",
+    enterPin: "Enter 6-digit access PIN:",
+    loginBtn: "Login",
+    wrongPin: "Invalid access code!"
+  }
+};
+
+function t(key) {
+  return translations[currentLanguage][key] || key;
+}
+
 function initBogifyApp() {
   setupPinLockMechanism();
+  injectLanguageSwitcherToHeader();
   loadCatalogData();
+}
+
+/* ДОБАВЯНЕ НА БУТОН ЗА СМЯНА НА ЕЗИКА В ХЕДЪРА */
+function injectLanguageSwitcherToHeader() {
+  let headerEl = document.querySelector(".header-right");
+  if (!headerEl) return;
+
+  if (document.getElementById("lang-toggle-btn")) return;
+
+  const langBtn = document.createElement("button");
+  langBtn.id = "lang-toggle-btn";
+  langBtn.className = "home-btn";
+  langBtn.style.cssText = "background: #222; border: 1px solid #444; color: #fff; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; border-radius: 4px; transition: background 0.2s; margin-left: 5px;";
+  
+  updateLangButtonText(langBtn);
+
+  langBtn.onclick = () => {
+    currentLanguage = currentLanguage === "bg" ? "en" : "bg";
+    updateLangButtonText(langBtn);
+    updateStaticTexts();
+    renderHomeCatalog();
+  };
+
+  headerEl.appendChild(langBtn);
+}
+
+function updateLangButtonText(btn) {
+  btn.textContent = currentLanguage === "bg" ? "🇬🇧 EN" : "🇧🇬 BG";
+}
+
+/* АКТУАЛИЗИРАНЕ НА СТАТИЧНИТЕ ТЕКСТОВЕ ПРИ СМЯНА НА ЕЗИК */
+function updateStaticTexts() {
+  document.getElementById("page-title").textContent = t("siteTitle");
+  document.querySelectorAll(".logo").forEach(el => el.textContent = t("siteTitle"));
+  document.getElementById("search-input").placeholder = t("searchPlaceholder");
+  document.getElementById("nav-home-btn").textContent = t("homeBtn");
+
+  // Превод на филтрите горе
+  const filterButtons = document.querySelectorAll(".filter-chip");
+  filterButtons.forEach(btn => {
+    const cat = btn.getAttribute("data-cat");
+    if (cat === "Всички") btn.textContent = t("all");
+    if (cat === "Сериал") btn.textContent = t("series");
+    if (cat === "Филм") btn.textContent = t("movie");
+  });
 }
 
 /* 1. ПИН ЗАЩИТА */
@@ -24,9 +144,9 @@ function setupPinLockMechanism() {
     <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #101010;">
       <div style="text-align: center; background: #181818; padding: 40px; border-radius: 12px; border: 1px solid #333; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
         <h2 style="color: #e50914; margin-bottom: 10px; font-size: 2rem;">Детство</h2>
-        <p style="color: #aaa; margin-bottom: 25px; font-size: 0.9rem;">Въведете 6-цифрен код за достъп:</p>
+        <p id="pin-label" style="color: #aaa; margin-bottom: 25px; font-size: 0.9rem;">${t("enterPin")}</p>
         <input type="password" id="desktop-pin-input" maxlength="6" placeholder="••••••" style="width: 100%; padding: 12px; font-size: 1.5rem; text-align: center; background: #111; color: #fff; border: 1px solid #444; border-radius: 6px; letter-spacing: 5px; outline: none; margin-bottom: 15px; box-sizing: border-box;" />
-        <button id="desktop-pin-btn" style="width: 100%; padding: 12px; background: #e50914; color: #fff; border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer;">Вход</button>
+        <button id="desktop-pin-btn" style="width: 100%; padding: 12px; background: #e50914; color: #fff; border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer;">${t("loginBtn")}</button>
         <div id="desktop-lock-error" style="color: #e50914; margin-top: 15px; font-size: 0.9rem; min-height: 20px;"></div>
       </div>
     </div>
@@ -40,7 +160,6 @@ function setupPinLockMechanism() {
 
   const handleLogin = () => {
     const enteredValue = pinInput.value.trim();
-    
     const validPins = typeof BOGIFY_VALID_PINS !== "undefined" ? BOGIFY_VALID_PINS : [];
     const fallbackCheck = atob("MDg3OQ==");
 
@@ -52,7 +171,7 @@ function setupPinLockMechanism() {
         siteContainer.style.display = "block";
       }, 400);
     } else {
-      errorEl.textContent = "Невалиден код за достъп!";
+      errorEl.textContent = t("wrongPin");
       pinInput.value = "";
       pinInput.focus();
     }
@@ -94,7 +213,6 @@ function convertToEmbedUrl(rawUrl) {
         fileId = urlParams.get("id");
       } catch (err) {}
     }
-    
     if (fileId) {
       return `https://drive.google.com/file/d/${fileId}/preview`;
     }
@@ -119,7 +237,6 @@ function convertToEmbedUrl(rawUrl) {
   if (videoId) {
     return `https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1`;
   }
-  
   return cleanUrl;
 }
 
@@ -148,49 +265,30 @@ function getThumbnailUrl(rawUrl) {
   return "";
 }
 
-/* GOOGLE-ПОДОБНА ФУНКЦИЯ ЗА НОРМАЛИЗИРАНЕ НА ТЕКСТ */
 function normalizeText(text) {
   if (!text) return "";
   let str = String(text).toLowerCase().trim();
-  
-  // Транслитерация латиница -> кирилица (поддържа съчетания и единични букви)
-  str = str.replace(/sht/g, 'щ')
-           .replace(/sh/g, 'ш')
-           .replace(/ch/g, 'ч')
-           .replace(/zh/g, 'ж')
-           .replace(/ts/g, 'ц')
-           .replace(/yu/g, 'ю')
-           .replace(/ya/g, 'я');
-
-  const latinToCyrillic = {
-    'a': 'а', 'b': 'б', 'v': 'в', 'g': 'г', 'd': 'д', 'e': 'е', 'z': 'з', 
-    'i': 'и', 'j': 'й', 'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н', 'o': 'о', 
-    'p': 'п', 'r': 'р', 's': 'с', 't': 'т', 'u': 'у', 'f': 'ф', 'h': 'х', 'c': 'ц'
-  };
-
+  str = str.replace(/sht/g, 'щ').replace(/sh/g, 'ш').replace(/ch/g, 'ч').replace(/zh/g, 'ж').replace(/ts/g, 'ц').replace(/yu/g, 'ю').replace(/ya/g, 'я');
+  const latinToCyrillic = { 'a': 'а', 'b': 'б', 'v': 'в', 'g': 'г', 'd': 'д', 'e': 'е', 'z': 'з', 'i': 'и', 'j': 'й', 'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н', 'o': 'о', 'p': 'п', 'r': 'р', 's': 'с', 't': 'т', 'u': 'у', 'f': 'ф', 'h': 'х', 'c': 'ц' };
   for (let [lat, cyr] of Object.entries(latinToCyrillic)) {
     str = str.replace(new RegExp(lat, 'g'), cyr);
   }
-
-  return str.normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-zа-я0-9\s]/g, "") // Запазваме интервалите за разделяне на думи
-            .replace(/\s+/g, " ")
-            .trim();
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zа-я0-9\s]/g, "").replace(/\s+/g, " ").trim();
 }
 
 /* 3. ЗАРЕЖДАНЕ НА ДАННИТЕ */
 let globalCatalogData = [];
 let currentCategoryFilter = "Всички";
 let currentSearchQuery = "";
-let currentViewMode = "grid"; // 'grid' или 'list' за главния каталог
-let currentEpisodesViewMode = "list"; // 'list' или 'grid' за епизодите
+let currentViewMode = "grid";
+let currentEpisodesViewMode = "list";
 let currentCarouselIndex = 0;
 let carouselInterval = null;
 
 async function loadCatalogData() {
   const gridContainer = document.getElementById("media-grid");
   if (!gridContainer) return;
+  gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">${t("loadingCatalog")}</div>`;
 
   const MOVIES_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxbTu3x7iCYVf2HyrznMY5ULSq5DhdgyHs_Mtkd8Lokbi3W6ySixFulK6kCxiq2LO4/exec";
 
@@ -203,7 +301,7 @@ async function loadCatalogData() {
     gridContainer.innerHTML = "";
 
     if (!Array.isArray(rawData) || rawData.length === 0) {
-      gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">Таблицата е празна.</div>`;
+      gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">${t("emptyTable")}</div>`;
       return;
     }
 
@@ -217,10 +315,8 @@ async function loadCatalogData() {
     }
 
     globalCatalogData = [];
-
     rawData.forEach((item, index) => {
       if (index === 0) return;
-
       let r = Array.isArray(item) ? item : Object.values(item);
 
       let title = cleanVal(r[0]);
@@ -231,9 +327,7 @@ async function loadCatalogData() {
       let videoUrl = cleanVal(r[5]);
       let posterUrl = cleanVal(r[6]);
 
-      if (!title || title.toLowerCase().includes("име") || title.toLowerCase().includes("наименование")) {
-        return;
-      }
+      if (!title || title.toLowerCase().includes("име") || title.toLowerCase().includes("наименование")) return;
 
       globalCatalogData.push({
         title: title,
@@ -247,10 +341,9 @@ async function loadCatalogData() {
     });
 
     renderHomeCatalog();
-
   } catch (error) {
     console.error("Грешка:", error);
-    gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">Грешка при връзка с таблицата.</div>`;
+    gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">${t("dbError")}</div>`;
   }
 }
 
@@ -263,7 +356,7 @@ function shuffleArray(array) {
   return arr;
 }
 
-/* 4. РЕНДИРАНЕ НА КАТАЛОГА И GOOGLE ТЪРСЕНЕ */
+/* 4. РЕНДИРАНЕ НА КАТАЛОГА И ТЪРСЕНЕ */
 function renderHomeCatalog() {
   hideAllViews();
   document.getElementById("home-view").style.display = "block";
@@ -276,24 +369,17 @@ function renderHomeCatalog() {
   });
 
   const uniqueShows = Object.values(showsMap);
-
   const shuffledShows = shuffleArray(uniqueShows);
   setupCarousel(shuffledShows.slice(0, 5));
 
-  // Разбиваме търсенето на отделни думи (Google логика)
   const normalizedQuery = normalizeText(currentSearchQuery);
   const searchKeywords = normalizedQuery ? normalizedQuery.split(" ") : [];
 
   let filteredShows = uniqueShows.filter(show => {
     const matchesCategory = currentCategoryFilter === "Всички" || show.kind.toLowerCase() === currentCategoryFilter.toLowerCase();
-    
     if (searchKeywords.length === 0) return matchesCategory;
-
     const normalizedTitle = normalizeText(show.title);
-    
-    // Проверяваме дали ВСИЧКИ написани думи се съдържат в заглавието (без значение от реда)
     const matchesAllKeywords = searchKeywords.every(keyword => normalizedTitle.includes(keyword));
-    
     return matchesCategory && matchesAllKeywords;
   });
 
@@ -303,29 +389,27 @@ function renderHomeCatalog() {
   const controlsBar = document.createElement("div");
   controlsBar.style.cssText = "display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 20px; padding: 0 10px;";
   controlsBar.innerHTML = `
-    <span style="color: #aaa; font-size: 0.9rem; margin-right: 5px;">Изглед:</span>
-    <button onclick="setViewMode('grid')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentViewMode === 'grid' ? '#e50914' : '#222'}; border: 1px solid ${currentViewMode === 'grid' ? '#e50914' : '#444'}; cursor: pointer;">Мрежа</button>
-    <button onclick="setViewMode('list')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentViewMode === 'list' ? '#e50914' : '#222'}; border: 1px solid ${currentViewMode === 'list' ? '#e50914' : '#444'}; cursor: pointer;">Списък</button>
+    <span style="color: #aaa; font-size: 0.9rem; margin-right: 5px;">${t('viewLabel')}</span>
+    <button onclick="setViewMode('grid')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentViewMode === 'grid' ? '#e50914' : '#222'}; border: 1px solid ${currentViewMode === 'grid' ? '#e50914' : '#444'}; cursor: pointer;">${t('viewGrid')}</button>
+    <button onclick="setViewMode('list')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentViewMode === 'list' ? '#e50914' : '#222'}; border: 1px solid ${currentViewMode === 'list' ? '#e50914' : '#444'}; cursor: pointer;">${t('viewList')}</button>
   `;
   gridContainer.appendChild(controlsBar);
 
   if (filteredShows.length === 0) {
     const emptyMsg = document.createElement("div");
     emptyMsg.style.cssText = "color: #888; padding: 40px; text-align: center; font-size: 1.1rem;";
-    emptyMsg.textContent = "Няма намерени заглавия.";
+    emptyMsg.textContent = t("noResults");
     gridContainer.appendChild(emptyMsg);
     return;
   }
 
   const gridWrapper = document.createElement("div");
-
   if (currentViewMode === 'grid') {
     gridWrapper.className = "media-grid-container";
     filteredShows.forEach(show => {
       const card = document.createElement("div");
       card.className = "media-card";
       card.onclick = () => openSeasonsView(show.title);
-
       card.innerHTML = `
         <div class="poster-wrapper">
           <img src="${show.posterUrl}" alt="${show.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${show.title}')">
@@ -345,7 +429,6 @@ function renderHomeCatalog() {
       item.onmouseover = () => item.style.borderColor = "#e50914";
       item.onmouseout = () => item.style.borderColor = "#333";
       item.onclick = () => openSeasonsView(show.title);
-
       item.innerHTML = `
         <div style="display: flex; align-items: center; gap: 15px;">
           <img src="${show.posterUrl}" alt="${show.title}" style="width: 45px; height: 65px; object-fit: cover; border-radius: 4px;" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${show.title}')">
@@ -354,12 +437,11 @@ function renderHomeCatalog() {
             <div style="color: #aaa; font-size: 0.85rem;">${show.kind}</div>
           </div>
         </div>
-        <button class="home-btn" style="background: #e50914; border: none; padding: 8px 16px; font-size: 0.9rem;">Преглед</button>
+        <button class="home-btn" style="background: #e50914; border: none; padding: 8px 16px; font-size: 0.9rem;">${t('overview')}</button>
       `;
       gridWrapper.appendChild(item);
     });
   }
-
   gridContainer.appendChild(gridWrapper);
 }
 
@@ -377,7 +459,6 @@ function handleSearch(query) {
 function setupCarousel(slidesData) {
   const carouselInner = document.getElementById("carousel-inner");
   if (!carouselInner) return;
-
   carouselInner.innerHTML = "";
   if (slidesData.length === 0) return;
 
@@ -385,13 +466,12 @@ function setupCarousel(slidesData) {
     const slide = document.createElement("div");
     slide.className = "carousel-slide";
     slide.onclick = () => openSeasonsView(show.title);
-
     slide.innerHTML = `
       <img src="${show.posterUrl}" alt="${show.title}" onerror="this.src='https://via.placeholder.com/1200x500/181818/ffffff?text='+encodeURIComponent('${show.title}')">
       <div class="carousel-gradient"></div>
       <div class="carousel-caption">
         <h2>${show.title}</h2>
-        <p>Натисни за преглед на сезоните и епизодите (${show.kind})</p>
+        <p>${t('carouselSub')} (${show.kind})</p>
       </div>
     `;
     carouselInner.appendChild(slide);
@@ -401,9 +481,7 @@ function setupCarousel(slidesData) {
   updateCarouselPosition();
 
   if (carouselInterval) clearInterval(carouselInterval);
-  carouselInterval = setInterval(() => {
-    moveCarousel(1);
-  }, 5000);
+  carouselInterval = setInterval(() => { moveCarousel(1); }, 5000);
 }
 
 function moveCarousel(direction) {
@@ -411,7 +489,6 @@ function moveCarousel(direction) {
   if (!carouselInner) return;
   const totalSlides = carouselInner.children.length;
   if (totalSlides === 0) return;
-
   currentCarouselIndex = (currentCarouselIndex + direction + totalSlides) % totalSlides;
   updateCarouselPosition();
 }
@@ -438,7 +515,6 @@ function openSeasonsView(showTitle) {
 
   const showItems = globalCatalogData.filter(i => i.title === showTitle);
   const seasonsMap = {};
-  
   showItems.forEach(item => {
     if (!seasonsMap[item.season]) {
       seasonsMap[item.season] = item.posterUrl;
@@ -448,23 +524,17 @@ function openSeasonsView(showTitle) {
   const seasonsSet = Object.keys(seasonsMap).sort((a, b) => {
     let strA = String(a).toLowerCase().trim();
     let strB = String(b).toLowerCase().trim();
-
     if (strA.includes("пролог") || strA === "0") return -1;
     if (strB.includes("пролог") || strB === "0") return 1;
-
-    let numA = parseFloat(a);
-    let numB = parseFloat(b);
-
-    if (!isNaN(numA) && !isNaN(numB)) {
-      return numA - numB;
-    }
+    let numA = parseFloat(a), numB = parseFloat(b);
+    if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
     return strA.localeCompare(strB);
   });
 
   seasonsView.innerHTML = `
     <div style="max-width: 1000px; margin: 0 auto;">
-      <button onclick="showHomeView()" class="home-btn" style="margin-bottom: 20px;">← Назад към каталога</button>
-      <h1 style="color: #fff; margin-bottom: 20px;">${showTitle} - Избери Сезон</h1>
+      <button onclick="showHomeView()" class="home-btn" style="margin-bottom: 20px;">${t('backToCatalog')}</button>
+      <h1 style="color: #fff; margin-bottom: 20px;">${showTitle} - ${t('selectSeason')}</h1>
       <div style="display: flex; gap: 20px; flex-wrap: wrap;" id="seasons-grid"></div>
     </div>
   `;
@@ -478,11 +548,12 @@ function openSeasonsView(showTitle) {
     card.onmouseout = () => { card.style.transform = "scale(1)"; card.style.borderColor = "#333"; };
     card.onclick = () => openEpisodesView(showTitle, seasonNum);
 
+    let seasonLabelText = isNaN(seasonNum) ? seasonNum : `${t('season')} ${seasonNum}`;
     card.innerHTML = `
       <div style="width: 100%; aspect-ratio: 2/3; overflow: hidden; background: #000;">
         <img src="${poster}" alt="${seasonNum}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${seasonNum}')">
       </div>
-      <div style="padding: 12px; color: #fff; font-size: 1.1rem; font-weight: bold;">${isNaN(seasonNum) ? seasonNum : 'Сезон ' + seasonNum}</div>
+      <div style="padding: 12px; color: #fff; font-size: 1.1rem; font-weight: bold;">${seasonLabelText}</div>
     `;
     seasonsGrid.appendChild(card);
   });
@@ -503,41 +574,37 @@ function openEpisodesView(showTitle, seasonNum) {
 
 function renderEpisodesContent(showTitle, seasonNum, episodesList) {
   const episodesView = document.getElementById("episodes-view");
+  let seasonLabelText = isNaN(seasonNum) ? seasonNum : `${t('season')} ${seasonNum}`;
   
   episodesView.innerHTML = `
     <div style="max-width: 1000px; margin: 0 auto;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-        <button onclick="openSeasonsView('${showTitle}')" class="home-btn">← Назад към сезоните</button>
-        
+        <button onclick="openSeasonsView('${showTitle}')" class="home-btn">${t('backToSeasons')}</button>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="color: #aaa; font-size: 0.9rem;">Изглед:</span>
-          <button onclick="setEpisodesViewMode('${showTitle}', '${seasonNum}', 'list')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentEpisodesViewMode === 'list' ? '#e50914' : '#222'}; border: 1px solid ${currentEpisodesViewMode === 'list' ? '#e50914' : '#444'}; cursor: pointer;">Списък</button>
-          <button onclick="setEpisodesViewMode('${showTitle}', '${seasonNum}', 'grid')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentEpisodesViewMode === 'grid' ? '#e50914' : '#222'}; border: 1px solid ${currentEpisodesViewMode === 'grid' ? '#e50914' : '#444'}; cursor: pointer;">Мрежа</button>
+          <span style="color: #aaa; font-size: 0.9rem;">${t('viewLabel')}</span>
+          <button onclick="setEpisodesViewMode('${showTitle}', '${seasonNum}', 'list')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentEpisodesViewMode === 'list' ? '#e50914' : '#222'}; border: 1px solid ${currentEpisodesViewMode === 'list' ? '#e50914' : '#444'}; cursor: pointer;">${t('viewList')}</button>
+          <button onclick="setEpisodesViewMode('${showTitle}', '${seasonNum}', 'grid')" class="home-btn" style="padding: 6px 14px; font-size: 0.85rem; background: ${currentEpisodesViewMode === 'grid' ? '#e50914' : '#222'}; border: 1px solid ${currentEpisodesViewMode === 'grid' ? '#e50914' : '#444'}; cursor: pointer;">${t('viewGrid')}</button>
         </div>
       </div>
-
-      <h1 style="color: #fff; margin-bottom: 20px;">${showTitle} — ${isNaN(seasonNum) ? seasonNum : 'Сезон ' + seasonNum}</h1>
+      <h1 style="color: #fff; margin-bottom: 20px;">${showTitle} — ${seasonLabelText}</h1>
       <div id="episodes-container"></div>
     </div>
   `;
 
   const container = document.getElementById("episodes-container");
-
   if (currentEpisodesViewMode === 'list') {
     container.style.cssText = "display: flex; flex-direction: column; gap: 10px;";
     episodesList.forEach(ep => {
       const item = document.createElement("div");
       item.style.cssText = "background: #181818; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333;";
-
       item.innerHTML = `
         <div>
           <div style="color: #fff; font-weight: bold; font-size: 1.1rem;">${ep.episodeName}</div>
-          <div style="color: #aaa; font-size: 0.85rem; margin-top: 4px;">Епизод ${ep.episode}</div>
+          <div style="color: #aaa; font-size: 0.85rem; margin-top: 4px;">${t('episode')} ${ep.episode}</div>
         </div>
-        <button class="home-btn" style="background: #e50914; border: none;">Гледай</button>
+        <button class="home-btn" style="background: #e50914; border: none;">${t('watch')}</button>
       `;
-
-      item.querySelector("button").onclick = () => openMediaViewer(`${ep.title} - ${seasonNum} (${ep.episodeName})`, ep.videoUrl);
+      item.querySelector("button").onclick = () => openMediaViewer(`${ep.title} - ${seasonLabelText} (${ep.episodeName})`, ep.videoUrl);
       container.appendChild(item);
     });
   } else {
@@ -548,15 +615,14 @@ function renderEpisodesContent(showTitle, seasonNum, episodesList) {
       card.style.cssText = "background: #181818; border-radius: 8px; overflow: hidden; border: 1px solid #333; cursor: pointer; transition: transform 0.2s, border-color 0.2s; display: flex; flex-direction: column;";
       card.onmouseover = () => { card.style.transform = "scale(1.03)"; card.style.borderColor = "#e50914"; };
       card.onmouseout = () => { card.style.transform = "scale(1)"; card.style.borderColor = "#333"; };
-      card.onclick = () => openMediaViewer(`${ep.title} - ${seasonNum} (${ep.episodeName})`, ep.videoUrl);
-
+      card.onclick = () => openMediaViewer(`${ep.title} - ${seasonLabelText} (${ep.episodeName})`, ep.videoUrl);
       card.innerHTML = `
         <div style="width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; position: relative;">
-          <img src="${thumb}" alt="${ep.episodeName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/300x169/181818/ffffff?text='+encodeURIComponent('Епизод ${ep.episode}')">
+          <img src="${thumb}" alt="${ep.episodeName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/300x169/181818/ffffff?text='+encodeURIComponent('${t('episode')} ${ep.episode}')">
         </div>
         <div style="padding: 12px; display: flex; flex-direction: column; justify-content: space-between; flex-grow: 1;">
           <div style="color: #fff; font-weight: bold; font-size: 1rem; margin-bottom: 5px;">${ep.episodeName}</div>
-          <div style="color: #aaa; font-size: 0.8rem;">Епизод ${ep.episode}</div>
+          <div style="color: #aaa; font-size: 0.8rem;">${t('episode')} ${ep.episode}</div>
         </div>
       `;
       container.appendChild(card);
@@ -581,41 +647,32 @@ function openMediaViewer(titleText, mediaSourceUrl) {
   const finalEmbedUrl = convertToEmbedUrl(mediaSourceUrl);
   const isYouTube = mediaSourceUrl.includes("youtube.com") || mediaSourceUrl.includes("youtu.be");
   const isArchive = mediaSourceUrl.includes("archive.org");
-
-  let sourceLabel = "Google Drive";
-  if (isArchive) {
-    sourceLabel = "Internet Archive";
-  }
+  let sourceLabel = isArchive ? "Internet Archive" : "Google Drive";
 
   watchView.innerHTML = `
     <div style="max-width: 1000px; margin: 0 auto; padding-bottom: 40px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
-        <button onclick="showHomeView()" class="home-btn">← На начало</button>
-        <a href="${TERABOX_FOLDER_URL}" target="_blank" class="home-btn" style="text-decoration: none; background: #e50914; display: inline-flex; align-items: center; gap: 6px;">📂 Отвори Terabox папка</a>
+        <button onclick="showHomeView()" class="home-btn">${t('backToHome')}</button>
+        <a href="${TERABOX_FOLDER_URL}" target="_blank" class="home-btn" style="text-decoration: none; background: #e50914; display: inline-flex; align-items: center; gap: 6px;">${t('openTerabox')}</a>
       </div>
-      
       <h2 style="color: #fff; margin-bottom: 15px;">${titleText}</h2>
-      
       <div style="position: relative; width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #333;">
         ${isYouTube ? `
           <div style="text-align: center; padding: 20px;">
-            <p style="color: #fff; font-size: 1.1rem; margin-bottom: 20px;">Това видео е от YouTube и изисква директно гледане:</p>
-            <a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="display: inline-block; text-decoration: none; background: #e50914; color: #fff; padding: 15px 30px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">Гледай в YouTube</a>
+            <p style="color: #fff; font-size: 1.1rem; margin-bottom: 20px;">${t('youtubeDirect')}</p>
+            <a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="display: inline-block; text-decoration: none; background: #e50914; color: #fff; padding: 15px 30px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">${t('watchYoutube')}</a>
           </div>
         ` : isArchive ? `
-          <video controls controlslist="nodownload" style="width:100%; height:100%; background:#000;" src="${finalEmbedUrl}">
-            Вашият браузър не поддържа видео плейъра.
-          </video>
+          <video controls controlslist="nodownload" style="width:100%; height:100%; background:#000;" src="${finalEmbedUrl}">Your browser does not support the video player.</video>
         ` : `
           <iframe src="${finalEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         `}
       </div>
-
       <div style="margin-top: 20px; background: #181818; padding: 20px; border-radius: 8px; border: 1px solid #333; text-align: center;">
-        <p style="color: #fff; font-size: 1rem; margin-bottom: 15px; font-weight: 500;">Ако видеото от ${sourceLabel} не тръгва:</p>
+        <p style="color: #fff; font-size: 1rem; margin-bottom: 15px; font-weight: 500;">${t('ifNotWorking')} ${sourceLabel}</p>
         <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-          ${!isYouTube ? `<a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="text-decoration: none; background: #333; color: #fff; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1rem;">Отвори линка директно в нов прозорец</a>` : ''}
-          <a href="${TERABOX_FOLDER_URL}" target="_blank" class="home-btn" style="text-decoration: none; background: #e50914; color: #fff; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1rem;">Отвори папката в Terabox</a>
+          ${!isYouTube ? `<a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="text-decoration: none; background: #333; color: #fff; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1rem;">${t('openDirectly')}</a>` : ''}
+          <a href="${TERABOX_FOLDER_URL}" target="_blank" class="home-btn" style="text-decoration: none; background: #e50914; color: #fff; padding: 12px 25px; border-radius: 6px; font-weight: bold; font-size: 1rem;">${t('openTerabox')}</a>
         </div>
       </div>
     </div>
@@ -623,7 +680,6 @@ function openMediaViewer(titleText, mediaSourceUrl) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* ПОМОЩНИ ФУНКЦИИ */
 function hideAllViews() {
   ["home-view", "seasons-view", "episodes-view", "watch-view"].forEach(id => {
     const el = document.getElementById(id);
