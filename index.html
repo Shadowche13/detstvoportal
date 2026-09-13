@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">Детство</title>
+    <title>Детство</title>
     <link rel="stylesheet" href="style.css">
     <!-- Google Icons за модерни бутони и иконки -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
@@ -22,7 +22,7 @@
                     <span class="material-icons">search</span>
                     <input type="text" id="search-input" placeholder="Търсене на филм или сериал..." oninput="handleSearch(this.value)">
                 </div>
-                <button class="home-btn" id="nav-home-btn" onclick="showHomeView()">Начало</button>
+                <button class="home-btn" onclick="showHomeView()">Начало</button>
             </div>
         </header>
         
@@ -38,9 +38,9 @@
                 
                 <!-- Филтри / Категории -->
                 <div class="filter-bar" id="filter-bar">
-                    <button class="filter-chip active" data-cat="Всички" onclick="filterByCategory('Всички', this)">Всички</button>
-                    <button class="filter-chip" data-cat="Сериал" onclick="filterByCategory('Сериал', this)">Сериали</button>
-                    <button class="filter-chip" data-cat="Филм" onclick="filterByCategory('Филм', this)">Филми</button>
+                    <button class="filter-chip active" onclick="filterByCategory('Всички', this)">Всички</button>
+                    <button class="filter-chip" onclick="filterByCategory('Сериал', this)">Сериали</button>
+                    <button class="filter-chip" onclick="filterByCategory('Филм', this)">Филми</button>
                 </div>
                 
                 <!-- Секция с картички -->
