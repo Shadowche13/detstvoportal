@@ -156,12 +156,12 @@ function normalizeText(text) {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zа-я0-9\s]/g, "").replace(/\s+/g, " ").trim();
 }
 
-/* 3. ЗАРЕЖДАНЕ НА ДАННИТЕ */
+/* 3. ЗАРЕЖДАНЕ НА ДАННИТЕ (Винаги по подразбиране на МРЕЖА) */
 let globalCatalogData = [];
 let currentCategoryFilter = "Всички";
 let currentSearchQuery = "";
 let currentViewMode = "grid";
-let currentEpisodesViewMode = "list";
+let currentEpisodesViewMode = "grid";
 let currentCarouselIndex = 0;
 let carouselInterval = null;
 
