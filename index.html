@@ -38,6 +38,14 @@
                     <button class="carousel-control next" onclick="moveCarousel(1)">&#10095;</button>
                 </div>
                 
+                <!-- Секция "Продължи гледането" -->
+                <div id="continue-watching-section" style="display: none; margin: 20px 0; padding: 0 10px;">
+                    <h3 style="color: #fff; margin-bottom: 12px; font-size: 1.2rem;">Продължи гледането</h3>
+                    <div id="continue-watching-grid" style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin;">
+                        <!-- Тук динамично се зареждат клиповете -->
+                    </div>
+                </div>
+                
                 <!-- Филтри / Категории -->
                 <div class="filter-bar" id="filter-bar">
                     <button class="filter-chip active" onclick="filterByCategory('Всички', this)">Всички</button>
