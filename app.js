@@ -122,6 +122,12 @@ function convertToEmbedUrl(rawUrl, timeSeconds = 0) {
     return cleanUrl;
 }
 
+function getArchiveIdentifier(rawUrl) {
+    if (!rawUrl) return "";
+    let match = String(rawUrl).match(/archive\.org\/(?:details|embed|download)\/([^\/?#]+)/);
+    return match ? match[1] : "";
+}
+
 function getThumbnailUrl(rawUrl) {
     if (!rawUrl) return "";
     let cleanUrl = String(rawUrl).trim();
@@ -671,6 +677,7 @@ function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = 
     const finalEmbedUrl = convertToEmbedUrl(mediaSourceUrl, savedTime);
     const isYouTube = mediaSourceUrl.includes("youtube.com") || mediaSourceUrl.includes("youtu.be");
     const isArchive = mediaSourceUrl.includes("archive.org");
+    const archiveIdentifier = isArchive ? getArchiveIdentifier(mediaSourceUrl) : "";
     let sourceLabel = isArchive ? "Internet Archive" : "Google Drive";
 
     watchView.innerHTML = `
@@ -687,7 +694,7 @@ function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = 
                         <a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="display: inline-block; text-decoration: none; background: #e50914; color: #fff; padding: 15px 30px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">Гледай в YouTube</a>
                     </div>
                 ` : isArchive ? `
-                    <video id="bogify-video-player" controls controlslist="nodownload" style="width:100%; height:100%; background:#000;" src="${finalEmbedUrl}"></video>
+                    <video id="bogify-video-player" controls controlslist="nodownload" style="width:100%; height:100%; background:#000;" src="${finalEmbedUrl}" onerror="handleArchiveVideoError(this, '${archiveIdentifier}')"></video>
                 ` : `
                     <iframe src="${finalEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                 `}
@@ -715,6 +722,14 @@ function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = 
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function handleArchiveVideoError(videoEl, identifier) {
+    if (!identifier || !videoEl || videoEl.dataset.fallbackApplied) return;
+    videoEl.dataset.fallbackApplied = "1";
+    const wrapper = videoEl.parentElement;
+    if (!wrapper) return;
+    wrapper.innerHTML = `<iframe src="https://archive.org/embed/${identifier}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
 }
 
 function hideAllViews() {
