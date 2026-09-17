@@ -69,20 +69,14 @@ function convertToEmbedUrl(rawUrl, timeSeconds = 0) {
     if (!rawUrl) return "";
     let cleanUrl = String(rawUrl).trim();
     
-    // Поддръжка, ако случайно е подаден целия iframe код
-    if (cleanUrl.includes("<iframe") && cleanUrl.includes("archive.org")) {
-        let srcMatch = cleanUrl.match(/src="([^"]+)"/);
-        if (srcMatch && srcMatch[1]) {
-            cleanUrl = srcMatch[1];
-        }
-    }
-
     if (cleanUrl.includes("archive.org")) {
         let match = cleanUrl.match(/(?:details|embed|download)\/([^\/?#]+)/);
         if (match && match[1]) {
             let identifier = match[1];
-            // Използваме официалния embed линк, за да тръгва във вграден player без проблеми с кодеци и кирилица
-            return `https://archive.org/embed/${identifier}`;
+            if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mkv") || cleanUrl.endsWith(".webm")) {
+                return cleanUrl;
+            }
+            return `https://archive.org/download/${identifier}/${identifier}.mp4`;
         }
         return cleanUrl;
     }
@@ -177,6 +171,7 @@ async function loadCatalogData() {
     const gridContainer = document.getElementById("media-grid");
     if (!gridContainer) return;
 
+    // Проверяваме дали имаме кеширани данни в браузъра (валидни за 10 минути)
     const cachedData = localStorage.getItem("bogify_cache_data");
     const cachedTime = localStorage.getItem("bogify_cache_time");
     const now = new Date().getTime();
@@ -239,6 +234,7 @@ async function loadCatalogData() {
             });
         });
 
+        // Запазваме в кеша
         localStorage.setItem("bogify_cache_data", JSON.stringify(globalCatalogData));
         localStorage.setItem("bogify_cache_time", now);
 
@@ -558,9 +554,31 @@ function setEpisodesViewMode(showTitle, seasonNum, mode) {
     renderEpisodesContent(showTitle, seasonNum, episodesList);
 }
 
-/* 7. УПРАВЛЕНИЕ НА ИСТОРИЯТА */
+/* 7. УПРАВЛЕНИЕ НА "ПРОДЪЛЖИ ГЛЕДАНЕТО" И ТОЧНО ВРЕМЕ ДО СЕКУНДА */
 function getWatchHistory() {
     return JSON.parse(localStorage.getItem('bogify_continue')) || [];
+}
+
+function saveWatchProgress(videoUrl, currentTime, duration) {
+    if (!videoUrl || isNaN(currentTime) || isNaN(duration) || duration <= 0) return;
+    let history = getWatchHistory();
+    let index = history.findIndex(item => item.videoUrl === videoUrl);
+    
+    if (currentTime / duration > 0.95) {
+        if (index !== -1) {
+            history.splice(index, 1);
+            localStorage.setItem('bogify_continue', JSON.stringify(history));
+        }
+        return;
+    }
+
+    if (index !== -1) {
+        history[index].currentTime = currentTime;
+        history[index].duration = duration;
+        let item = history.splice(index, 1)[0];
+        history.unshift(item);
+    }
+    localStorage.setItem('bogify_continue', JSON.stringify(history));
 }
 
 function addToHistoryMeta(title, season, episodeName, videoUrl, posterUrl) {
@@ -572,7 +590,9 @@ function addToHistoryMeta(title, season, episodeName, videoUrl, posterUrl) {
         season,
         episodeName,
         videoUrl,
-        posterUrl
+        posterUrl,
+        currentTime: index !== -1 ? history[index].currentTime : 0,
+        duration: index !== -1 ? history[index].duration : 0
     };
 
     if (index !== -1) history.splice(index, 1);
@@ -605,6 +625,8 @@ function renderContinueWatching() {
     grid.innerHTML = '';
 
     history.forEach(item => {
+        let percent = (item.duration && item.currentTime) ? Math.min(100, Math.max(5, (item.currentTime / item.duration) * 100)) : 0;
+        
         let card = document.createElement('div');
         card.style.cssText = "min-width: 220px; max-width: 220px; background: #1a1a1a; border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #333; transition: transform 0.2s, border-color 0.2s; position: relative;";
         card.onmouseover = () => { card.style.transform = "translateY(-3px)"; card.style.borderColor = "#e50914"; };
@@ -617,6 +639,9 @@ function renderContinueWatching() {
             <div style="width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; position: relative;">
                 <img src="${item.posterUrl || ''}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/220x124/181818/ffffff?text=Видео'">
                 <button onclick="removeFromHistory(event, '${item.videoUrl}')" title="Премахни от историята" style="position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); border: none; color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px;">&times;</button>
+                <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: rgba(255,255,255,0.2);">
+                    <div style="width: ${percent}%; height: 100%; background: #e50914;"></div>
+                </div>
             </div>
             <div style="padding: 10px 12px;">
                 <div style="color: #fff; font-weight: bold; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.title}</div>
@@ -629,7 +654,7 @@ function renderContinueWatching() {
     });
 }
 
-/* 8. ПЛЕЙЪР */
+/* 8. ПЛЕЙЪР С ПОДДРЪЖКА НА ТОЧНО ВРЕМЕ */
 function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = "", episodeName = "", posterUrl = "") {
     hideAllViews();
     const watchView = document.getElementById("watch-view");
@@ -639,7 +664,11 @@ function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = 
         addToHistoryMeta(showTitle, seasonNum, episodeName, mediaSourceUrl, posterUrl);
     }
 
-    const finalEmbedUrl = convertToEmbedUrl(mediaSourceUrl);
+    let history = getWatchHistory();
+    let currentItem = history.find(i => i.videoUrl === mediaSourceUrl);
+    let savedTime = currentItem ? currentItem.currentTime : 0;
+
+    const finalEmbedUrl = convertToEmbedUrl(mediaSourceUrl, savedTime);
     const isYouTube = mediaSourceUrl.includes("youtube.com") || mediaSourceUrl.includes("youtu.be");
     const isArchive = mediaSourceUrl.includes("archive.org");
     let sourceLabel = isArchive ? "Internet Archive" : "Google Drive";
@@ -657,6 +686,8 @@ function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = 
                         <p style="color: #fff; font-size: 1.1rem; margin-bottom: 20px;">Това видео е от YouTube и изисква директно гледане:</p>
                         <a href="${mediaSourceUrl}" target="_blank" class="home-btn" style="display: inline-block; text-decoration: none; background: #e50914; color: #fff; padding: 15px 30px; border-radius: 6px; font-weight: bold; font-size: 1.1rem;">Гледай в YouTube</a>
                     </div>
+                ` : isArchive ? `
+                    <video id="bogify-video-player" controls controlslist="nodownload" style="width:100%; height:100%; background:#000;" src="${finalEmbedUrl}"></video>
                 ` : `
                     <iframe src="${finalEmbedUrl}" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                 `}
@@ -670,6 +701,18 @@ function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = 
             </div>
         </div>
     `;
+
+    if (isArchive) {
+        const videoEl = document.getElementById("bogify-video-player");
+        if (videoEl) {
+            if (savedTime > 0) {
+                videoEl.currentTime = savedTime;
+            }
+            videoEl.addEventListener("timeupdate", () => {
+                saveWatchProgress(mediaSourceUrl, videoEl.currentTime, videoEl.duration);
+            });
+        }
+    }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
