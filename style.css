@@ -9,8 +9,38 @@ body {
   background-color: #101010;
   color: #fff;
   min-height: 100vh;
+  position: relative;
 }
 
+/* Блед сив фон с изображението на целия екран (активен и за lock-screen, и за сайта) */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url("https://raw.githubusercontent.com/Shadowche13/detstvoportal/33ed711b624b4f7a831ad24a5226e75a51f5b402/background_image.png");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+  filter: grayscale(100%); /* Прави изображението сиво */
+  opacity: 0.04;           /* 4% видимост – регулирай от 0.02 до 0.08 по вкус */
+  pointer-events: none;
+  z-index: -1;             /* Поставя фона най-отдолу зад всички елементи */
+}
+
+/* Стилизиране на Lock Screen екрана */
+#lock-screen {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* Навигационна лента */
 .bogify-header {
   display: flex;
   justify-content: space-between;
@@ -82,12 +112,16 @@ body {
   background: #f40612;
 }
 
+/* Основно съдържание */
 .bogify-main {
   padding: 30px 40px;
   max-width: 1400px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
+/* Каросел */
 .hero-carousel {
   position: relative;
   width: 100%;
@@ -172,6 +206,7 @@ body {
 .carousel-control.prev { left: 15px; }
 .carousel-control.next { right: 15px; }
 
+/* Филтри */
 .filter-bar {
   display: flex;
   gap: 12px;
@@ -199,6 +234,7 @@ body {
   border-color: #e50914;
 }
 
+/* Каталог и Карти */
 .media-grid-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -252,6 +288,7 @@ body {
   margin-top: 4px;
 }
 
+/* Мобилен изглед */
 @media (max-width: 768px) {
   .bogify-header { padding: 15px 20px; }
   .bogify-main { padding: 15px; }
