@@ -11,6 +11,10 @@
 
     <!-- Google Icons за модерни бутони и иконки -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <!-- EPUB.js и JSZip библиотеки за дигитален четец на книги -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
 </head>
 <body>
 
@@ -22,11 +26,10 @@
         <header class="bogify-header">
             <h1 class="logo" onclick="showHomeView()">Детство</h1>
             <div class="header-right">
-                <!-- Добавен бутон за случайно заглавие тук -->
                 <button class="home-btn" onclick="playRandomTitle()" style="background: #e50914; border: none;">🎲 Случайно</button>
                 <div class="search-box">
                     <span class="material-icons">search</span>
-                    <input type="text" id="search-input" placeholder="Търсене на филм или сериал..." oninput="handleSearch(this.value)">
+                    <input type="text" id="search-input" placeholder="Търсене на филм, сериал или книга..." oninput="handleSearch(this.value)">
                 </div>
                 <button class="home-btn" onclick="showHomeView()">Начало</button>
             </div>
@@ -55,6 +58,7 @@
                     <button class="filter-chip active" onclick="filterByCategory('Всички', this)">Всички</button>
                     <button class="filter-chip" onclick="filterByCategory('Сериал', this)">Сериали</button>
                     <button class="filter-chip" onclick="filterByCategory('Филм', this)">Филми</button>
+                    <button class="filter-chip" onclick="filterByCategory('Книга', this)">Книги</button>
                 </div>
                 
                 <!-- Секция с картички -->
@@ -67,7 +71,7 @@
             <!-- Екран за епизоди -->
             <div id="episodes-view" class="view-section" style="display: none;"></div>
             
-            <!-- Екран за гледане (плейър) -->
+            <!-- Екран за гледане (плейър) / четене -->
             <div id="watch-view" class="view-section" style="display: none;"></div>
         </main>
     </div>
@@ -77,7 +81,6 @@
     <script src="player.js"></script>
     <script src="app.js"></script>
     <script>
-        // Функция за бутона "Случайно заглавие", която избира произволен филм/сериал от заредения каталог
         function playRandomTitle() {
             if (typeof globalCatalogData === "undefined" || globalCatalogData.length === 0) return;
             const showsMap = {};
@@ -87,7 +90,12 @@
             const uniqueShows = Object.values(showsMap);
             if (uniqueShows.length === 0) return;
             const randomShow = uniqueShows[Math.floor(Math.random() * uniqueShows.length)];
-            openSeasonsView(randomShow.title);
+            
+            if (randomShow.kind.toLowerCase() === 'книга' || randomShow.isBook) {
+                openBookReader(randomShow);
+            } else {
+                openSeasonsView(randomShow.title);
+            }
         }
     </script>
 </body>
