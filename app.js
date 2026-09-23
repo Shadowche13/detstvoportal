@@ -73,7 +73,7 @@ function convertToEmbedUrl(rawUrl, timeSeconds = 0) {
         let match = cleanUrl.match(/(?:details|embed|download)\/([^\/?#]+)/);
         if (match && match[1]) {
             let identifier = match[1];
-            if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mkv") || cleanUrl.endsWith(".webm")) {
+            if (cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".mkv") || cleanUrl.endsWith(".webm") || cleanUrl.endsWith(".epub")) {
                 return cleanUrl;
             }
             return `https://archive.org/download/${identifier}/${identifier}.mp4`;
@@ -164,7 +164,7 @@ function normalizeText(text) {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zа-я0-9\s]/g, "").replace(/\s+/g, " ").trim();
 }
 
-/* 3. ЗАРЕЖДАНЕ НА ДАННИТЕ С КЕШИРАНЕ */
+/* 3. ЗАРЕЖДАНЕ НА ДАННИТЕ (ФИЛМИ + КНИГИ) */
 let globalCatalogData = [];
 let currentCategoryFilter = "Всички";
 let currentSearchQuery = "";
@@ -177,9 +177,8 @@ async function loadCatalogData() {
     const gridContainer = document.getElementById("media-grid");
     if (!gridContainer) return;
 
-    // Проверяваме дали имаме кеширани данни в браузъра (валидни за 10 минути)
-    const cachedData = localStorage.getItem("bogify_cache_data");
-    const cachedTime = localStorage.getItem("bogify_cache_time");
+    const cachedData = localStorage.getItem("bogify_cache_data_v5");
+    const cachedTime = localStorage.getItem("bogify_cache_time_v5");
     const now = new Date().getTime();
 
     if (cachedData && cachedTime && (now - cachedTime < 10 * 60 * 1000)) {
@@ -190,20 +189,10 @@ async function loadCatalogData() {
 
     gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">Зареждане на каталога...</div>`;
 
-    const MOVIES_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxbTu3x7iCYVf2HyrznMY5ULSq5DhdgyHs_Mtkd8Lokbi3W6ySixFulK6kCxiq2LO4/exec";
+    const MOVIES_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyY-cZ34oofxUkiftYwe2FogzQ5WVD9FYX9_gBRcVUNayg1bLC41za3caYZZqw6uJpP/exec";
 
     try {
-        const response = await fetch(MOVIES_SCRIPT_URL);
-        const textData = await response.text();
-        const parsedData = JSON.parse(textData);
-
-        let rawData = Array.isArray(parsedData) ? parsedData : (parsedData.data || parsedData.rows || Object.values(parsedData));
-        gridContainer.innerHTML = "";
-
-        if (!Array.isArray(rawData) || rawData.length === 0) {
-            gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">Таблицата е празна.</div>`;
-            return;
-        }
+        globalCatalogData = [];
 
         function cleanVal(val) {
             if (val === null || val === undefined) return "";
@@ -214,35 +203,81 @@ async function loadCatalogData() {
             return String(val).trim();
         }
 
-        globalCatalogData = [];
-        rawData.forEach((item, index) => {
-            if (index === 0) return;
-            let r = Array.isArray(item) ? item : Object.values(item);
+        // 1. Зареждане на филми и сериали (първи лист)
+        try {
+            const resMovies = await fetch(MOVIES_SCRIPT_URL);
+            const textMovies = await resMovies.text();
+            const parsedMovies = JSON.parse(textMovies);
+            let rawMovies = Array.isArray(parsedMovies) ? parsedMovies : (parsedMovies.data || parsedMovies.rows || Object.values(parsedMovies));
 
-            let title = cleanVal(r[0]);
-            let kind = cleanVal(r[1]);
-            let episodeName = cleanVal(r[2]);
-            let season = cleanVal(r[3]);
-            let episodeNum = cleanVal(r[4]);
-            let videoUrl = cleanVal(r[5]);
-            let posterUrl = cleanVal(r[6]);
+            rawMovies.forEach((item, index) => {
+                if (index === 0) return;
+                let r = Array.isArray(item) ? item : Object.values(item);
+                let title = cleanVal(r[0]);
+                let kind = cleanVal(r[1]) || "Сериал";
+                let episodeName = cleanVal(r[2]);
+                let season = cleanVal(r[3]);
+                let episodeNum = cleanVal(r[4]);
+                let videoUrl = cleanVal(r[5]);
+                let posterUrl = cleanVal(r[6]);
 
-            if (!title || title.toLowerCase().includes("име") || title.toLowerCase().includes("наименование")) return;
+                if (!title || title.toLowerCase().includes("име")) return;
 
-            globalCatalogData.push({
-                title: title,
-                kind: kind || "Сериал",
-                episodeName: episodeName || `Епизод ${episodeNum}`,
-                season: season || "1",
-                episode: episodeNum || "1",
-                videoUrl: videoUrl,
-                posterUrl: posterUrl ? posterUrl : `https://via.placeholder.com/300x450/181818/ffffff?text=${encodeURIComponent(title)}`
+                globalCatalogData.push({
+                    title: title,
+                    kind: kind,
+                    episodeName: episodeName || `Епизод ${episodeNum}`,
+                    season: season || "1",
+                    episode: episodeNum || "1",
+                    videoUrl: videoUrl,
+                    posterUrl: posterUrl ? posterUrl : `https://via.placeholder.com/300x450/181818/ffffff?text=${encodeURIComponent(title)}`,
+                    isBook: false
+                });
             });
-        });
+        } catch (eMovies) {
+            console.log("Грешка при зареждане на филмите:", eMovies);
+        }
 
-        // Запазваме в кеша
-        localStorage.setItem("bogify_cache_data", JSON.stringify(globalCatalogData));
-        localStorage.setItem("bogify_cache_time", now);
+        // 2. Зареждане на книги (лист "Книги")
+        try {
+            const resBooks = await fetch(MOVIES_SCRIPT_URL + "?sheet=Книги");
+            const textBooks = await resBooks.text();
+            const parsedBooks = JSON.parse(textBooks);
+            let rawBooks = Array.isArray(parsedBooks) ? parsedBooks : (parsedBooks.data || parsedBooks.rows || Object.values(parsedBooks));
+
+            rawBooks.forEach((item, index) => {
+                if (index === 0) return;
+                let r = Array.isArray(item) ? item : Object.values(item);
+                let bookName = cleanVal(r[0]);
+                let bookLink = cleanVal(r[1]);
+                let audioUrl = cleanVal(r[2]);
+                let coverUrl = cleanVal(r[3]);
+
+                if (!bookName || !bookLink) return;
+
+                globalCatalogData.push({
+                    title: bookName,
+                    kind: "Книга",
+                    episodeName: "Книга",
+                    season: "1",
+                    episode: "1",
+                    videoUrl: bookLink,
+                    audioUrl: audioUrl || "",
+                    posterUrl: coverUrl ? coverUrl : `https://via.placeholder.com/300x450/181818/ffffff?text=${encodeURIComponent(bookName)}`,
+                    isBook: true
+                });
+            });
+        } catch (eBooks) {
+            console.log("Грешка при зареждане на книгите:", eBooks);
+        }
+
+        if (globalCatalogData.length === 0) {
+            gridContainer.innerHTML = `<div style="color:#fff; padding:20px;">Таблицата е празна или няма връзка.</div>`;
+            return;
+        }
+
+        localStorage.setItem("bogify_cache_data_v5", JSON.stringify(globalCatalogData));
+        localStorage.setItem("bogify_cache_time_v5", now);
 
         renderHomeCatalog();
     } catch (error) {
@@ -315,7 +350,13 @@ function renderHomeCatalog() {
         filteredShows.forEach(show => {
             const card = document.createElement("div");
             card.className = "media-card";
-            card.onclick = () => openSeasonsView(show.title);
+            card.onclick = () => {
+                if (show.kind.toLowerCase() === 'книга' || show.isBook) {
+                    openBookReader(show);
+                } else {
+                    openSeasonsView(show.title);
+                }
+            };
             card.innerHTML = `
                 <div class="poster-wrapper">
                     <img src="${show.posterUrl}" alt="${show.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${show.title}')">
@@ -334,7 +375,13 @@ function renderHomeCatalog() {
             item.style.cssText = "background: #181818; padding: 12px 18px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #333; cursor: pointer; transition: border-color 0.2s;";
             item.onmouseover = () => item.style.borderColor = "#e50914";
             item.onmouseout = () => item.style.borderColor = "#333";
-            item.onclick = () => openSeasonsView(show.title);
+            item.onclick = () => {
+                if (show.kind.toLowerCase() === 'книга' || show.isBook) {
+                    openBookReader(show);
+                } else {
+                    openSeasonsView(show.title);
+                }
+            };
             item.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 15px;">
                     <img src="${show.posterUrl}" alt="${show.title}" loading="lazy" style="width: 45px; height: 65px; object-fit: cover; border-radius: 4px;" onerror="this.src='https://via.placeholder.com/300x450/181818/ffffff?text='+encodeURIComponent('${show.title}')">
@@ -371,13 +418,19 @@ function setupCarousel(slidesData) {
     slidesData.forEach(show => {
         const slide = document.createElement("div");
         slide.className = "carousel-slide";
-        slide.onclick = () => openSeasonsView(show.title);
+        slide.onclick = () => {
+            if (show.kind.toLowerCase() === 'книга' || show.isBook) {
+                openBookReader(show);
+            } else {
+                openSeasonsView(show.title);
+            }
+        };
         slide.innerHTML = `
             <img src="${show.posterUrl}" alt="${show.title}" onerror="this.src='https://via.placeholder.com/1200x500/181818/ffffff?text='+encodeURIComponent('${show.title}')">
             <div class="carousel-gradient"></div>
             <div class="carousel-caption">
                 <h2>${show.title}</h2>
-                <p>Натисни за преглед на сезоните и епизодите (${show.kind})</p>
+                <p>Натисни за преглед (${show.kind})</p>
             </div>
         `;
         carouselInner.appendChild(slide);
@@ -414,7 +467,12 @@ function playRandomTitle() {
     const uniqueShows = Object.values(showsMap);
     if (uniqueShows.length === 0) return;
     const randomShow = uniqueShows[Math.floor(Math.random() * uniqueShows.length)];
-    openSeasonsView(randomShow.title);
+    
+    if (randomShow.kind.toLowerCase() === 'книга' || randomShow.isBook) {
+        openBookReader(randomShow);
+    } else {
+        openSeasonsView(randomShow.title);
+    }
 }
 
 function filterByCategory(category, btnElement) {
@@ -424,14 +482,14 @@ function filterByCategory(category, btnElement) {
     renderHomeCatalog();
 }
 
-/* 5. СЕЗОНИ */
+/* 5. СЕЗОНИ ЗА ФИЛМИ И СЕРИАЛИ */
 function openSeasonsView(showTitle) {
     if (carouselInterval) clearInterval(carouselInterval);
     hideAllViews();
     const seasonsView = document.getElementById("seasons-view");
     seasonsView.style.display = "block";
 
-    const showItems = globalCatalogData.filter(i => i.title === showTitle);
+    const showItems = globalCatalogData.filter(i => i.title === showTitle && !i.isBook);
     const seasonsMap = {};
     showItems.forEach(item => {
         if (!seasonsMap[item.season]) {
@@ -484,7 +542,7 @@ function openEpisodesView(showTitle, seasonNum) {
     const episodesView = document.getElementById("episodes-view");
     episodesView.style.display = "block";
 
-    const episodesList = globalCatalogData.filter(i => i.title === showTitle && String(i.season) === String(seasonNum))
+    const episodesList = globalCatalogData.filter(i => i.title === showTitle && String(i.season) === String(seasonNum) && !i.isBook)
         .sort((a, b) => Number(a.episode) - Number(b.episode));
 
     renderEpisodesContent(showTitle, seasonNum, episodesList);
@@ -555,12 +613,80 @@ function renderEpisodesContent(showTitle, seasonNum, episodesList) {
 
 function setEpisodesViewMode(showTitle, seasonNum, mode) {
     currentEpisodesViewMode = mode;
-    const episodesList = globalCatalogData.filter(i => i.title === showTitle && String(i.season) === String(seasonNum))
+    const episodesList = globalCatalogData.filter(i => i.title === showTitle && String(i.season) === String(seasonNum) && !i.isBook)
         .sort((a, b) => Number(a.episode) - Number(b.episode));
     renderEpisodesContent(showTitle, seasonNum, episodesList);
 }
 
-/* 7. УПРАВЛЕНИЕ НА "ПРОДЪЛЖИ ГЛЕДАНЕТО" И ТОЧНО ВРЕМЕ ДО СЕКУНДА */
+/* 7. ДИГИТАЛЕН ЧЕТЕЦ НА КНИГИ (ОПРАВЕН) */
+function openBookReader(book) {
+    hideAllViews();
+    const watchView = document.getElementById("watch-view");
+    watchView.style.display = "block";
+
+    watchView.innerHTML = `
+        <div style="max-width: 900px; margin: 0 auto; padding-bottom: 40px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                <button onclick="showHomeView()" class="home-btn">← На начало</button>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    ${book.audioUrl ? `<a href="${book.audioUrl}" target="_blank" class="home-btn" style="background: #e50914; text-decoration: none; display: flex; align-items: center; gap: 6px;">🎧 Слушай аудио вариант</a>` : ''}
+                </div>
+            </div>
+            
+            <h2 style="color: #fff; margin-bottom: 15px; font-size: 1.5rem;">${book.title}</h2>
+            
+            <div style="position: relative; width: 100%; height: 72vh; background: #181818; border-radius: 12px; overflow: hidden; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.8);">
+                <div id="epub-viewer" style="width: 100%; height: 100%;"></div>
+                
+                <button id="prev-page" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: #fff; border: none; padding: 12px 16px; cursor: pointer; border-radius: 50%; font-size: 1.2rem; z-index: 10;">&#10094;</button>
+                <button id="next-page" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.6); color: #fff; border: none; padding: 12px 16px; cursor: pointer; border-radius: 50%; font-size: 1.2rem; z-index: 10;">&#10095;</button>
+            </div>
+        </div>
+    `;
+
+    try {
+        const viewerEl = document.getElementById("epub-viewer");
+        viewerEl.innerHTML = "";
+
+        let bookInstance = ePub(book.videoUrl);
+        let rendition = bookInstance.renderTo("epub-viewer", {
+            width: "100%",
+            height: "100%",
+            spread: "auto",
+            flow: "paginated"
+        });
+
+        rendition.display().then(() => {
+            if (bookInstance.locations) {
+                bookInstance.locations.generate();
+            }
+        });
+
+        document.getElementById("prev-page").onclick = function() {
+            rendition.prev();
+        };
+        document.getElementById("next-page").onclick = function() {
+            rendition.next();
+        };
+
+        // Навигация с клавиатура (стрелки наляво/надясно)
+        const handleKeyNavigation = (e) => {
+            if (document.getElementById("watch-view").style.display === "block") {
+                if (e.key === "ArrowLeft") rendition.prev();
+                if (e.key === "ArrowRight") rendition.next();
+            }
+        };
+        window.addEventListener("keydown", handleKeyNavigation);
+
+    } catch (err) {
+        console.error("Грешка при зареждане на EPUB книгата:", err);
+        document.getElementById("epub-viewer").innerHTML = `<div style="color:#fff; padding:40px; text-align:center;">Грешка при зареждане на книгата. <a href="${book.videoUrl}" target="_blank" style="color:#e50914;">Изтеглете файла директно</a></div>`;
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* 8. ИСТОРИЯ И ГЛЕДАНЕ НА ВИДЕА */
 function getWatchHistory() {
     return JSON.parse(localStorage.getItem('bogify_continue')) || [];
 }
@@ -660,7 +786,7 @@ function renderContinueWatching() {
     });
 }
 
-/* 8. ПЛЕЙЪР С ПОДДРЪЖКА НА ТОЧНО ВРЕМЕ */
+/* 9. ПЛЕЙЪР ЗА ФИЛМИ И СЕРИАЛИ */
 function openMediaViewer(titleText, mediaSourceUrl, showTitle = "", seasonNum = "", episodeName = "", posterUrl = "") {
     hideAllViews();
     const watchView = document.getElementById("watch-view");
